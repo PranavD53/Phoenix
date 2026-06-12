@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: phoenix-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: phoenix_db
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432" # Commented out to prevent conflict with local databases on port 5432. The backend connects directly via internal network.
+
+  backend:
+    build: ./backend
+    container_name: phoenix-backend-prod
+    restart: always
+    # ports:
+    #   - "5000:5000" # Commented out. Nginx reverse proxies API calls internally, bypassing host port blocking/firewall rules.
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:postgrespassword@database:5432/phoenix_db
+      JWT_SECRET: ${JWT_SECRET:-supersecurephoenixjwttokensecretkey12345}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_PASS: ${GMAIL_PASS}
+      HF_API_KEY: ${HF_API_KEY}
+    depends_on:
+      - database
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=/api
+    container_name: phoenix-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata_prod:
