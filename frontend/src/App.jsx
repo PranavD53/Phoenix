@@ -215,9 +215,10 @@ export default function App() {
 
   // Auth form states
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const [authForm, setAuthForm] = useState({ username: '', email: '', password: '', role: 'Student' });
+  const [authForm, setAuthForm] = useState({ username: '', email: '', password: '', confirmPassword: '', role: 'Student' });
   const [authError, setAuthError] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [showConfirmAuthPassword, setShowConfirmAuthPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -501,6 +502,10 @@ export default function App() {
       if (isLoginMode) {
         await login(authForm.email || authForm.username, authForm.password);
       } else {
+        if (authForm.password !== authForm.confirmPassword) {
+          setAuthError("Passwords do not match.");
+          return;
+        }
         await register(authForm.username, authForm.email, authForm.password, authForm.role);
       }
     } catch (err) {
@@ -1320,6 +1325,29 @@ export default function App() {
 
             {!isLoginMode && (
               <div className="form-group">
+                <label className="form-label">Confirm Password</label>
+                <div className="password-wrapper">
+                  <input
+                    type={showConfirmAuthPassword ? "text" : "password"}
+                    className="form-input"
+                    required
+                    placeholder="Confirm Password"
+                    value={authForm.confirmPassword}
+                    onChange={e => setAuthForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmAuthPassword(!showConfirmAuthPassword)}
+                  >
+                    {showConfirmAuthPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isLoginMode && (
+              <div className="form-group">
                 <label className="form-label">Select Workspace Role</label>
                 <select
                   className="form-input form-select"
@@ -1341,7 +1369,13 @@ export default function App() {
 
           <div className="auth-toggle">
             {isLoginMode ? "Don't have an account?" : "Already registered?"}
-            <button className="auth-toggle-btn" onClick={() => setIsLoginMode(!isLoginMode)}>
+            <button className="auth-toggle-btn" onClick={() => {
+              setIsLoginMode(!isLoginMode);
+              setAuthForm(prev => ({ ...prev, password: '', confirmPassword: '' }));
+              setAuthError('');
+              setShowAuthPassword(false);
+              setShowConfirmAuthPassword(false);
+            }}>
               {isLoginMode ? 'Sign up' : 'Login'}
             </button>
           </div>
