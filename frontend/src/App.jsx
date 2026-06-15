@@ -31,7 +31,9 @@ import {
   Key,
   Camera,
   UploadCloud,
-  Volume2
+  Volume2,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -170,7 +172,24 @@ const MarkdownRenderer = ({ content }) => {
 };
 
 export default function App() {
-  const { user, token, loading: authLoading, login, register, logout, updatePlan, updateProfile, changePassword, unverifiedEmail, verifyCode } = useAuth();
+  const { 
+    user, 
+    token, 
+    loading: authLoading, 
+    login, 
+    register, 
+    logout, 
+    updatePlan, 
+    updateProfile, 
+    changePassword, 
+    requestAdminAccess, 
+    switchRole, 
+    fetchAdminRequests, 
+    approveAdminRequest, 
+    rejectAdminRequest, 
+    unverifiedEmail, 
+    verifyCode 
+  } = useAuth();
   const {
     conversations,
     activeConversation,
@@ -270,6 +289,62 @@ export default function App() {
   const [profilePicLoading, setProfilePicLoading] = useState(false);
   const [profileUsername, setProfileUsername] = useState('');
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [adminRequests, setAdminRequests] = useState([]);
+  const [loadingAdminRequests, setLoadingAdminRequests] = useState(false);
+
+  const loadAdminRequests = async () => {
+    try {
+      setLoadingAdminRequests(true);
+      const data = await fetchAdminRequests();
+      setAdminRequests(data);
+    } catch (err) {
+      console.error('Failed to load admin requests:', err);
+    } finally {
+      setLoadingAdminRequests(false);
+    }
+  };
+
+  const handleRequestAdminAccess = async () => {
+    setDashboardStatus({ success: '', error: '' });
+    try {
+      await requestAdminAccess();
+      setDashboardStatus({ success: 'Admin access requested successfully! Pending owner approval.', error: '' });
+    } catch (err) {
+      setDashboardStatus({ success: '', error: err.message });
+    }
+  };
+
+  const handleSwitchRole = async (targetRole) => {
+    setDashboardStatus({ success: '', error: '' });
+    try {
+      await switchRole(targetRole);
+      setDashboardStatus({ success: `Switched role to ${targetRole} successfully!`, error: '' });
+    } catch (err) {
+      setDashboardStatus({ success: '', error: err.message });
+    }
+  };
+
+  const handleApproveAdmin = async (userId) => {
+    setDashboardStatus({ success: '', error: '' });
+    try {
+      const res = await approveAdminRequest(userId);
+      setDashboardStatus({ success: res.message, error: '' });
+      loadAdminRequests();
+    } catch (err) {
+      setDashboardStatus({ success: '', error: err.message });
+    }
+  };
+
+  const handleRejectAdmin = async (userId) => {
+    setDashboardStatus({ success: '', error: '' });
+    try {
+      const res = await rejectAdminRequest(userId);
+      setDashboardStatus({ success: res.message, error: '' });
+      loadAdminRequests();
+    } catch (err) {
+      setDashboardStatus({ success: '', error: err.message });
+    }
+  };
   
   // Interview voice input dictation
   const [isInterviewVoiceActive, setIsInterviewVoiceActive] = useState(false);
@@ -319,6 +394,13 @@ export default function App() {
   useEffect(() => {
     if (token && activeTab === 'analytics' && user?.role === 'Admin') {
       loadAdminStats();
+    }
+  }, [token, activeTab, user]);
+
+  // Load admin requests if owner is on profile tab
+  useEffect(() => {
+    if (token && activeTab === 'profile' && user?.email === 'sricharanpranav1@gmail.com') {
+      loadAdminRequests();
     }
   }, [token, activeTab, user]);
 
@@ -2374,6 +2456,118 @@ export default function App() {
                 </div>
 
               </div>
+
+              {/* Role Switcher & Admin Request Panel */}
+              <div className="question-card" style={{ padding: '2rem' }}>
+                <h4 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShieldCheck size={16} style={{ color: 'var(--accent-cyan)' }} />
+                  Role Management & Admin Privileges
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Your current active role is <strong style={{ color: 'var(--accent-cyan)' }}>{user.role}</strong>.
+                  </div>
+
+                  {/* Switch Role Options */}
+                  {(user.email === 'sricharanpranav1@gmail.com' || user.admin_request_status === 'Approved') ? (
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                      <button 
+                        onClick={() => handleSwitchRole('Student')}
+                        className="btn-primary" 
+                        style={{ 
+                          width: 'auto', 
+                          background: user.role === 'Student' ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.05)', 
+                          color: 'var(--text-primary)', 
+                          border: user.role === 'Student' ? 'none' : '1px solid var(--glass-border)' 
+                        }}
+                      >
+                        Switch to Student Role
+                      </button>
+                      <button 
+                        onClick={() => handleSwitchRole('Admin')}
+                        className="btn-primary" 
+                        style={{ 
+                          width: 'auto', 
+                          background: user.role === 'Admin' ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.05)', 
+                          color: 'var(--text-primary)', 
+                          border: user.role === 'Admin' ? 'none' : '1px solid var(--glass-border)' 
+                        }}
+                      >
+                        Switch to Admin Role
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {user.admin_request_status === 'Pending' ? (
+                        <div style={{ padding: '1rem', background: 'rgba(251,191,36,0.1)', borderColor: 'var(--accent-cyan)', color: '#fbbf24', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.25)', fontSize: '0.9rem' }}>
+                          Your request for Admin access is pending approval from the platform owner (sricharanpranav1@gmail.com).
+                        </div>
+                      ) : user.admin_request_status === 'Rejected' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', borderColor: 'var(--status-error)', color: 'var(--status-error)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.25)', fontSize: '0.9rem' }}>
+                            Your previous request for Admin access was rejected by the owner.
+                          </div>
+                          <button onClick={handleRequestAdminAccess} className="btn-primary" style={{ width: 'auto' }}>
+                            Request Admin Access Again
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            You are logged in as a Student. To unlock platform analytics, SQL reporting, and user administration panel, you must request Admin privileges.
+                          </p>
+                          <button onClick={handleRequestAdminAccess} className="btn-primary" style={{ width: 'auto' }}>
+                            Request Admin Access from Owner
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Owner Approvals Dashboard (Only visible to the owner sricharanpranav1@gmail.com) */}
+              {user.email === 'sricharanpranav1@gmail.com' && (
+                <div className="question-card" style={{ padding: '2rem' }}>
+                  <h4 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldAlert size={16} style={{ color: 'var(--accent-purple)' }} />
+                    Pending Admin Approvals
+                  </h4>
+                  {loadingAdminRequests ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading requests...</div>
+                  ) : adminRequests.length === 0 ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No pending admin requests.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {adminRequests.map(req => (
+                        <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.95rem' }}>{req.username}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{req.email} • Plan: {req.plan}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button 
+                              onClick={() => handleApproveAdmin(req.id)}
+                              className="btn-primary" 
+                              style={{ width: 'auto', padding: '0.4rem 1rem', background: 'var(--status-success)', color: '#fff', fontSize: '0.8rem' }}
+                            >
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleRejectAdmin(req.id)}
+                              className="btn-primary" 
+                              style={{ width: 'auto', padding: '0.4rem 1rem', background: 'var(--status-error)', color: '#fff', fontSize: '0.8rem' }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           )}
 

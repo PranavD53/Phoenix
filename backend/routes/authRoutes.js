@@ -61,10 +61,11 @@ router.post('/register', async (req, res) => {
       username,
       email,
       password_hash,
-      role: role === 'Admin' ? 'Admin' : 'Student',
+      role: 'Student',
       plan: 'Free',
       is_verified: false,
-      verification_code: verificationCode
+      verification_code: verificationCode,
+      admin_request_status: null
     });
 
     // Attempt to send email
@@ -153,7 +154,8 @@ router.post('/verify', async (req, res) => {
         email: user.email,
         role: user.role,
         plan: user.plan,
-        profile_pic: user.profile_pic
+        profile_pic: user.profile_pic,
+        admin_request_status: user.admin_request_status
       }
     });
 
@@ -238,7 +240,8 @@ router.post('/login', async (req, res) => {
         role: user.role,
         plan: user.plan,
         profile_pic: user.profile_pic,
-        daily_query_count: user.daily_query_count
+        daily_query_count: user.daily_query_count,
+        admin_request_status: user.admin_request_status
       }
     });
   } catch (err) {
@@ -257,7 +260,8 @@ router.get('/me', authenticateToken, async (req, res) => {
       role: req.user.role,
       plan: req.user.plan,
       profile_pic: req.user.profile_pic,
-      daily_query_count: req.user.daily_query_count
+      daily_query_count: req.user.daily_query_count,
+      admin_request_status: req.user.admin_request_status
     }
   });
 });
@@ -328,12 +332,164 @@ router.post('/update-profile', authenticateToken, async (req, res) => {
         role: user.role,
         plan: user.plan,
         profile_pic: user.profile_pic,
-        daily_query_count: user.daily_query_count
+        daily_query_count: user.daily_query_count,
+        admin_request_status: user.admin_request_status
       }
     });
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
+// Request Admin Access
+router.post('/request-admin', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.email === 'sricharanpranav1@gmail.com') {
+      return res.status(400).json({ error: 'You are the owner and already have Admin permissions.' });
+    }
+
+    user.admin_request_status = 'Pending';
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Admin access request sent to owner.',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        profile_pic: user.profile_pic,
+        daily_query_count: user.daily_query_count,
+        admin_request_status: user.admin_request_status
+      }
+    });
+  } catch (err) {
+    console.error('Request admin error:', err);
+    res.status(500).json({ error: 'Failed to send admin request.' });
+  }
+});
+
+// Fetch pending admin requests (Owner Only)
+router.get('/admin-requests', authenticateToken, async (req, res) => {
+  if (req.user.email !== 'sricharanpranav1@gmail.com') {
+    return res.status(403).json({ error: 'Only the platform owner can view admin requests.' });
+  }
+
+  try {
+    const requests = await User.findAll({
+      where: { admin_request_status: 'Pending' },
+      attributes: ['id', 'username', 'email', 'plan', 'createdAt']
+    });
+    res.json(requests);
+  } catch (err) {
+    console.error('Fetch admin requests error:', err);
+    res.status(500).json({ error: 'Failed to load admin requests.' });
+  }
+});
+
+// Approve admin request (Owner Only)
+router.post('/approve-admin/:userId', authenticateToken, async (req, res) => {
+  if (req.user.email !== 'sricharanpranav1@gmail.com') {
+    return res.status(403).json({ error: 'Only the platform owner can approve admin requests.' });
+  }
+
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    user.admin_request_status = 'Approved';
+    user.role = 'Admin'; // Automatically promote role
+    await user.save();
+
+    res.json({ success: true, message: `Approved admin request for ${user.username}.` });
+  } catch (err) {
+    console.error('Approve admin error:', err);
+    res.status(500).json({ error: 'Failed to approve admin request.' });
+  }
+});
+
+// Reject admin request (Owner Only)
+router.post('/reject-admin/:userId', authenticateToken, async (req, res) => {
+  if (req.user.email !== 'sricharanpranav1@gmail.com') {
+    return res.status(403).json({ error: 'Only the platform owner can reject admin requests.' });
+  }
+
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    user.admin_request_status = 'Rejected';
+    await user.save();
+
+    res.json({ success: true, message: `Rejected admin request for ${user.username}.` });
+  } catch (err) {
+    console.error('Reject admin error:', err);
+    res.status(500).json({ error: 'Failed to reject admin request.' });
+  }
+});
+
+// Switch role (Student <-> Admin) after login
+router.post('/switch-role', authenticateToken, async (req, res) => {
+  const { role } = req.body;
+  const userId = req.user.id;
+
+  if (!role || !['Student', 'Admin'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role specified. Must be "Student" or "Admin".' });
+  }
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Verification check for Admin switch
+    if (role === 'Admin') {
+      const isOwner = user.email === 'sricharanpranav1@gmail.com';
+      const isApproved = user.admin_request_status === 'Approved';
+      if (!isOwner && !isApproved) {
+        return res.status(403).json({ error: 'You do not have permission to switch to Admin. Please ask the owner (sricharanpranav1@gmail.com) for permission.' });
+      }
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `Successfully switched role to ${role}`,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        profile_pic: user.profile_pic,
+        daily_query_count: user.daily_query_count,
+        admin_request_status: user.admin_request_status
+      }
+    });
+  } catch (err) {
+    console.error('Switch role error:', err);
+    res.status(500).json({ error: 'Failed to switch user role.' });
   }
 });
 

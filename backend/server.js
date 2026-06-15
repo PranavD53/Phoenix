@@ -113,60 +113,35 @@ const initApp = async () => {
     await db.sequelize.sync({ alter: true });
     console.log('Database synced successfully.');
 
-    // Seed default test user accounts if empty
-    const userCount = await db.User.count();
-    if (userCount === 0) {
-      console.log('No users found. Seeding default student and admin accounts...');
-      
-      const salt = await bcrypt.genSalt(10);
-      const studentHash = await bcrypt.hash('password123', salt);
-      const adminHash = await bcrypt.hash('admin123', salt);
+    // Remove default test student and admin accounts if they exist
+    await db.User.destroy({ where: { email: ['student@gmail.com', 'admin@gmail.com'] } });
 
-      await db.User.create({
-        username: 'student',
-        email: 'student@gmail.com',
-        password_hash: studentHash,
-        role: 'Student',
-        plan: 'Free',
-        is_verified: true
-      });
-
-      await db.User.create({
-        username: 'admin',
-        email: 'admin@gmail.com',
-        password_hash: adminHash,
-        role: 'Admin',
-        plan: 'Free',
-        is_verified: true
-      });
-
-      console.log('Seeded accounts successfully:');
-      console.log(' -> Student: student@gmail.com / password123');
-      console.log(' -> Admin: admin@gmail.com / admin123');
-    }
-
-    // Seed/Verify Premium account for Pranav
+    // Seed/Verify Premium Admin account for Pranav (Owner)
     const pranavUser = await db.User.findOne({ where: { email: 'sricharanpranav1@gmail.com' } });
     const salt = await bcrypt.genSalt(10);
     const pranavHash = await bcrypt.hash('Pranav@123', salt);
+    
     if (!pranavUser) {
-      console.log('Seeding Premium account for Pranav...');
+      console.log('Seeding Premium Admin account for Pranav...');
       await db.User.create({
         username: 'Pranav',
         email: 'sricharanpranav1@gmail.com',
         password_hash: pranavHash,
-        role: 'Student',
+        role: 'Admin',
         plan: 'Premium',
-        is_verified: true
+        is_verified: true,
+        admin_request_status: 'Approved'
       });
-      console.log('Premium account for Pranav seeded successfully.');
+      console.log('Premium Admin account for Pranav seeded successfully.');
     } else {
       pranavUser.plan = 'Premium';
       pranavUser.username = 'Pranav';
       pranavUser.password_hash = pranavHash;
+      pranavUser.role = 'Admin';
       pranavUser.is_verified = true;
+      pranavUser.admin_request_status = 'Approved';
       await pranavUser.save();
-      console.log('Premium account details for Pranav updated/verified.');
+      console.log('Premium Admin account details for Pranav updated/verified.');
     }
 
     // Start Express listener

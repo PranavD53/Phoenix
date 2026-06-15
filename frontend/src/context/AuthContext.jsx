@@ -185,6 +185,86 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const requestAdminAccess = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/request-admin`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await handleResponse(res);
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
+  const switchRole = async (targetRole) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/switch-role`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ role: targetRole })
+      });
+      const data = await handleResponse(res);
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
+  const fetchAdminRequests = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/admin-requests`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
+  const approveAdminRequest = async (targetUserId) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/approve-admin/${targetUserId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
+  const rejectAdminRequest = async (targetUserId) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/reject-admin/${targetUserId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
   const value = {
     user,
     token,
@@ -197,6 +277,11 @@ export const AuthProvider = ({ children }) => {
     updatePlan,
     updateProfile,
     changePassword,
+    requestAdminAccess,
+    switchRole,
+    fetchAdminRequests,
+    approveAdminRequest,
+    rejectAdminRequest,
     unverifiedEmail,
     setUnverifiedEmail,
     refreshUser: fetchUser

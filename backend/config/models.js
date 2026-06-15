@@ -58,6 +58,14 @@ export const User = sequelize.define('User', {
   profile_pic: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  admin_request_status: {
+    type: DataTypes.STRING,
+    defaultValue: null,
+    allowNull: true,
+    validate: {
+      isIn: [[null, 'Pending', 'Approved', 'Rejected']]
+    }
   }
 });
 
