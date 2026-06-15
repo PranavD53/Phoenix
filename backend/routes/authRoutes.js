@@ -45,12 +45,66 @@ const getTransporter = async () => {
       tls: {
         servername: 'smtp.gmail.com'
       },
-      connectionTimeout: 5000, // 5 seconds
-      greetingTimeout: 5000,   // 5 seconds
-      socketTimeout: 10000     // 10 seconds
+      connectionTimeout: 3000, // 3 seconds
+      greetingTimeout: 3000,   // 3 seconds
+      socketTimeout: 5000      // 5 seconds
     });
   }
   return null;
+};
+
+// Helper to generate styled HTML email content
+const getEmailHtml = (code, isLogin = false) => {
+  const introText = isLogin 
+    ? 'Use the code below to verify your Gmail address and log in to your account:'
+    : 'Thank you for registering! Use the code below to verify your Gmail address and activate your account:';
+  return `
+    <div style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 500px;">
+      <h2 style="color: #06b6d4;">Phoenix AI Platform</h2>
+      <p>${introText}</p>
+      <div style="font-size: 24px; font-weight: bold; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 6px; display: inline-block; letter-spacing: 4px; color: #6366f1; margin: 15px 0;">
+        ${code}
+      </div>
+      <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">If you did not request this code, you can ignore this email.</p>
+    </div>
+  `;
+};
+
+// Helper to generate plain text email content
+const getEmailText = (code, isLogin = false) => {
+  const introText = isLogin 
+    ? 'Use the code below to verify your Gmail address and log in to your account:'
+    : 'Thank you for registering! Use the code below to verify your Gmail address and activate your account:';
+  return `Phoenix AI Platform\n\n${introText}\n\nYour verification code is: ${code}\n\nIf you did not request this code, you can ignore this email.`;
+};
+
+// Helper to send mail with a timeout
+const sendMailWithTimeout = (transporter, mailOptions, timeoutMs = 4000) => {
+  return new Promise((resolve, reject) => {
+    let completed = false;
+    const timer = setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        reject(new Error(`Gmail SMTP timed out after ${timeoutMs}ms`));
+      }
+    }, timeoutMs);
+
+    transporter.sendMail(mailOptions)
+      .then(info => {
+        if (!completed) {
+          completed = true;
+          clearTimeout(timer);
+          resolve(info);
+        }
+      })
+      .catch(err => {
+        if (!completed) {
+          completed = true;
+          clearTimeout(timer);
+          reject(err);
+        }
+      });
+  });
 };
 
 // Configure Resend Fallback Mailer
@@ -136,27 +190,18 @@ router.post('/register', async (req, res) => {
     let mailErrorMsg = '';
 
     const mailSubject = 'Phoenix Activation Code';
-    const mailText = `Your verification code is: ${verificationCode}\n\nUse this code to activate your account.`;
-    const mailHtml = `
-      <div style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 500px;">
-        <h2 style="color: #06b6d4;">Phoenix AI Platform</h2>
-        <p>Thank you for registering! Use the code below to verify your Gmail address and activate your account:</p>
-        <div style="font-size: 24px; font-weight: bold; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 6px; display: inline-block; letter-spacing: 4px; color: #6366f1; margin: 15px 0;">
-          ${verificationCode}
-        </div>
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">If you did not request this code, you can ignore this email.</p>
-      </div>
-    `;
+    const mailText = getEmailText(verificationCode, false);
+    const mailHtml = getEmailHtml(verificationCode, false);
     
     if (transporter) {
       try {
-        await transporter.sendMail({
+        await sendMailWithTimeout(transporter, {
           from: `"Phoenix AI Platform" <${process.env.GMAIL_USER}>`,
           to: email,
           subject: mailSubject,
           text: mailText,
           html: mailHtml
-        });
+        }, 4000);
         emailSent = true;
         console.log(`[Nodemailer] Gmail verification code dispatched to: ${email}`);
       } catch (mailErr) {
@@ -285,18 +330,18 @@ router.post('/login', async (req, res) => {
       let mailErrorMsg = '';
 
       const mailSubject = 'Phoenix Activation Code';
-      const mailText = `Your verification code is: ${code}`;
-      const mailHtml = `<p>Your verification code is: <strong>${code}</strong></p>`;
+      const mailText = getEmailText(code, true);
+      const mailHtml = getEmailHtml(code, true);
 
       if (transporter) {
         try {
-          await transporter.sendMail({
+          await sendMailWithTimeout(transporter, {
             from: `"Phoenix AI Platform" <${process.env.GMAIL_USER}>`,
             to: user.email,
             subject: mailSubject,
             text: mailText,
             html: mailHtml
-          });
+          }, 4000);
           emailSent = true;
           console.log(`[Nodemailer] Resend code dispatched to: ${user.email}`);
         } catch (mailErr) {
