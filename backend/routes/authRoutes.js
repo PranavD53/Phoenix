@@ -22,8 +22,11 @@ const getTransporter = () => {
   if (user && rawPass) {
     const pass = rawPass.replace(/\s+/g, '');
     return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user, pass },
+      family: 4 // Force IPv4 to prevent ENETUNREACH on IPv6-unfriendly networks/hosts (like Render)
     });
   }
   return null;
