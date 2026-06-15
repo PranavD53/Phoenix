@@ -189,6 +189,7 @@ export default function App() {
     fetchAdminRequests, 
     approveAdminRequest, 
     rejectAdminRequest, 
+    deleteAccount,
     unverifiedEmail, 
     verifyCode 
   } = useAuth();
@@ -958,6 +959,42 @@ export default function App() {
       setProfilePicLoading(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleDeleteProfilePic = async () => {
+    if (!window.confirm('Are you sure you want to delete your profile picture?')) return;
+    setProfilePicLoading(true);
+    setDashboardStatus({ success: '', error: '' });
+    try {
+      await updateProfile(undefined, null);
+      setDashboardStatus({ success: 'Profile picture removed successfully!', error: '' });
+    } catch (err) {
+      setDashboardStatus({ success: '', error: err.message });
+    } finally {
+      setProfilePicLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmation = window.confirm(
+      "WARNING: Are you absolutely sure you want to delete your account? This action is permanent and will instantly erase all your profile data, chat sessions, saved code snippets, uploaded documents, and mock interview reports."
+    );
+    if (!confirmation) return;
+
+    const doubleConfirmation = window.prompt(
+      'To confirm deletion, please type "DELETE" below:'
+    );
+    if (doubleConfirmation !== 'DELETE') {
+      alert('Account deletion cancelled (incorrect confirmation text).');
+      return;
+    }
+
+    try {
+      await deleteAccount();
+      alert('Your account has been successfully deleted. Thank you for using Phoenix.');
+    } catch (err) {
+      alert(`Failed to delete account: ${err.message}`);
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -2372,12 +2409,24 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Profile Pic Upload Trigger */}
-                  <label className="btn-primary align-center" style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'inline-flex', gap: '0.5rem' }}>
-                    <Camera size={16} />
-                    <span>Upload Picture</span>
-                    <input type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: 'none' }} />
-                  </label>
+                  {/* Profile Pic Actions */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                    <label className="btn-primary align-center" style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.85rem', cursor: 'pointer', display: 'inline-flex', gap: '0.5rem' }}>
+                      <Camera size={16} />
+                      <span>{user.profile_pic ? 'Change Picture' : 'Upload Picture'}</span>
+                      <input type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: 'none' }} />
+                    </label>
+                    {user.profile_pic && (
+                      <button 
+                        onClick={handleDeleteProfilePic} 
+                        className="btn-primary align-center" 
+                        style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-error)', border: '1px solid rgba(239, 68, 68, 0.25)', boxShadow: 'none', gap: '0.5rem' }}
+                      >
+                        <Trash2 size={16} />
+                        <span>Delete</span>
+                      </button>
+                    )}
+                  </div>
 
                   <h3 style={{ fontSize: '1.5rem', fontWeight: '700' }}>{user.username}</h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{user.email}</p>
@@ -2523,10 +2572,18 @@ export default function App() {
                         </div>
                       </div>
 
-                      <button onClick={logout} className="btn-primary align-center" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-error)', border: '1px solid rgba(239, 68, 68, 0.25)', boxShadow: 'none', gap: '0.5rem', marginTop: '0.5rem' }}>
-                        <LogOut size={16} />
-                        <span>Log Out of Phoenix</span>
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        <button onClick={logout} className="btn-primary align-center" style={{ flex: 1, background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)', boxShadow: 'none', gap: '0.5rem' }}>
+                          <LogOut size={16} />
+                          <span>Log Out</span>
+                        </button>
+                        {user.email !== 'sricharanpranav1@gmail.com' && (
+                          <button onClick={handleDeleteAccount} className="btn-primary align-center" style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-error)', border: '1px solid rgba(239, 68, 68, 0.25)', boxShadow: 'none', gap: '0.5rem' }}>
+                            <Trash2 size={16} />
+                            <span>Delete Account</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

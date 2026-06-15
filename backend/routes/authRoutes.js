@@ -7,12 +7,15 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecurephoenixjwttokensecretkey12345';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Configure Nodemailer Gmail Transporter
 const getTransporter = () => {
@@ -497,6 +500,29 @@ router.post('/switch-role', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Switch role error:', err);
     res.status(500).json({ error: 'Failed to switch user role.' });
+  }
+});
+
+// Delete User Account
+router.delete('/delete-account', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Owner protection safety check
+    if (user.email === 'sricharanpranav1@gmail.com') {
+      return res.status(400).json({ error: 'The platform owner account cannot be deleted.' });
+    }
+
+    await user.destroy();
+    res.json({ success: true, message: 'Account deleted successfully.' });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    res.status(500).json({ error: 'Failed to delete account.' });
   }
 });
 

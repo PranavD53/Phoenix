@@ -265,6 +265,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/delete-account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await handleResponse(res);
+      logout();
+      return data;
+    } catch (err) {
+      if (err && err.error) throw new Error(err.error);
+      throw err;
+    }
+  };
+
   const value = {
     user,
     token,
@@ -282,6 +299,7 @@ export const AuthProvider = ({ children }) => {
     fetchAdminRequests,
     approveAdminRequest,
     rejectAdminRequest,
+    deleteAccount,
     unverifiedEmail,
     setUnverifiedEmail,
     refreshUser: fetchUser
