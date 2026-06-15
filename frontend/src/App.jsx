@@ -1190,7 +1190,7 @@ export default function App() {
                   type="text"
                   className="form-input"
                   required
-                  placeholder="enter username"
+                  placeholder="Enter Username"
                   value={authForm.username}
                   onChange={e => setAuthForm(prev => ({ ...prev, username: e.target.value }))}
                 />
@@ -1203,7 +1203,7 @@ export default function App() {
                 type="email"
                 className="form-input"
                 required
-                placeholder="enter email"
+                placeholder="Enter Email"
                 value={authForm.email}
                 onChange={e => setAuthForm(prev => ({ ...prev, email: e.target.value }))}
               />
@@ -1215,7 +1215,7 @@ export default function App() {
                 type="password"
                 className="form-input"
                 required
-                placeholder="enter password"
+                placeholder="Enter Password"
                 value={authForm.password}
                 onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
               />
