@@ -74,10 +74,17 @@ app.get('/api/health/ai-test', async (req, res) => {
     const axios = (await import('axios')).default;
     
     const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${model}`,
-      { inputs: 'Hello, what is your name?', parameters: { max_new_tokens: 20 } },
+      'https://router.huggingface.co/v1/chat/completions',
       {
-        headers: { Authorization: `Bearer ${hfKey}` },
+        model: model,
+        messages: [{ role: 'user', content: 'Hello, what is your name?' }],
+        max_tokens: 20
+      },
+      {
+        headers: { 
+          'Authorization': `Bearer ${hfKey}`,
+          'Content-Type': 'application/json'
+        },
         timeout: 15000
       }
     );

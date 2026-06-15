@@ -99,7 +99,7 @@ export const queryHuggingFace = async (modelName, messages) => {
   try {
     console.log(`[Hugging Face] Querying chat completions for model: ${model}`);
     const response = await axios.post(
-      'https://api-inference.huggingface.co/v1/chat/completions',
+      'https://router.huggingface.co/v1/chat/completions',
       {
         model: model,
         messages: [
@@ -130,47 +130,50 @@ export const queryHuggingFace = async (modelName, messages) => {
       };
     }
   } catch (chatErr) {
-    console.warn(`[Hugging Face] Chat completions failed for ${model}, trying raw text generation...`, chatErr.message);
+    console.warn(`[Hugging Face] Chat completions failed for ${model}, trying raw text completions...`, chatErr.message);
     if (chatErr.response) {
       console.warn(`[Hugging Face] Chat completions error details:`, JSON.stringify(chatErr.response.data));
     }
   }
 
-  // Method 2: Fallback to raw Text Generation API (models/{model})
+  // Method 2: Fallback to raw text completions API (v1/completions)
   try {
     const formattedPrompt = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n') + '\nAssistant:';
     
-    console.log(`[Hugging Face] Querying raw text generation for model: ${model}`);
+    console.log(`[Hugging Face] Querying raw text completions for model: ${model}`);
     const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${model}`,
-      { inputs: formattedPrompt, parameters: { max_new_tokens: 500, temperature: 0.7 } },
+      'https://router.huggingface.co/v1/completions',
       {
-        headers: { Authorization: `Bearer ${HF_KEY}` },
+        model: model,
+        prompt: formattedPrompt,
+        max_tokens: 500,
+        temperature: 0.7
+      },
+      {
+        headers: { 
+          'Authorization': `Bearer ${HF_KEY}`,
+          'Content-Type': 'application/json'
+        },
         timeout: 20000
       }
     );
 
-    let outputText = '';
-    if (Array.isArray(response.data) && response.data[0] && response.data[0].generated_text) {
-      outputText = response.data[0].generated_text.replace(formattedPrompt, '').trim();
-    } else if (response.data && response.data.generated_text) {
-      outputText = response.data.generated_text.trim();
-    } else {
-      outputText = JSON.stringify(response.data);
+    if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].text) {
+      const outputText = response.data.choices[0].text.trim();
+      return {
+        text: outputText,
+        model: model,
+        latency_ms: 0
+      };
     }
-
-    return {
-      text: outputText,
-      model: model,
-      latency_ms: 0
-    };
   } catch (textErr) {
-    console.warn(`[Hugging Face] Text generation failed for ${model}:`, textErr.message);
+    console.warn(`[Hugging Face] Text completions failed for ${model}:`, textErr.message);
     if (textErr.response) {
-      console.warn(`[Hugging Face] Text generation error details:`, JSON.stringify(textErr.response.data));
+      console.warn(`[Hugging Face] Text completions error details:`, JSON.stringify(textErr.response.data));
     }
     return getMockResponse(model, messages);
   }
+
 };
 
 // Utility to calculate Cosine Similarity between two vector arrays
