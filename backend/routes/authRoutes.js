@@ -107,39 +107,50 @@ const sendMailWithTimeout = (transporter, mailOptions, timeoutMs = 4000) => {
   });
 };
 
-// Configure Resend Fallback Mailer
-const sendViaResend = async (toEmail, subject, textContent, htmlContent) => {
-  const token = process.env.RESEND_API_TOKEN;
+// Configure Brevo Fallback Mailer
+const sendViaBrevo = async (toEmail, subject, textContent, htmlContent) => {
+  const token = process.env.BREVO_API_KEY;
   if (!token) {
-    throw new Error('Resend API token is not configured');
+    throw new Error('Brevo API key is not configured');
   }
 
+  // Use GMAIL_USER as the verified sender email address in Brevo
+  const senderEmail = process.env.GMAIL_USER || 'sricharanpranav1@gmail.com';
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'accept': 'application/json',
+        'api-key': token
       },
       body: JSON.stringify({
-        from: 'Phoenix AI Platform <onboarding@resend.dev>',
-        to: [toEmail],
+        sender: {
+          name: 'Phoenix AI Platform',
+          email: senderEmail
+        },
+        to: [
+          {
+            email: toEmail
+          }
+        ],
         subject: subject,
-        text: textContent,
-        html: htmlContent
+        textContent: textContent,
+        htmlContent: htmlContent
       })
     });
 
     if (!response.ok) {
       const errData = await response.json();
-      throw new Error(errData.message || `Resend responded with status ${response.status}`);
+      throw new Error(errData.message || `Brevo responded with status ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('[Resend] Email sent successfully via API:', data);
+    console.log('[Brevo] Email sent successfully via API:', data);
     return true;
   } catch (err) {
-    console.error('[Resend Error] Failed to send via Resend API:', err.message);
+    console.error('[Brevo Error] Failed to send via Brevo API:', err.message);
     throw err;
   }
 };
@@ -205,22 +216,22 @@ router.post('/register', async (req, res) => {
         emailSent = true;
         console.log(`[Nodemailer] Gmail verification code dispatched to: ${email}`);
       } catch (mailErr) {
-        console.error('[Nodemailer Error] Failed to send email, attempting Resend fallback:', mailErr.message);
+        console.error('[Nodemailer Error] Failed to send email, attempting Brevo fallback:', mailErr.message);
         mailErrorMsg = `Gmail SMTP failed: ${mailErr.message}`;
       }
     } else {
       mailErrorMsg = 'Gmail SMTP credentials not configured';
     }
 
-    // Fallback to Resend API if Gmail SMTP failed
+    // Fallback to Brevo API if Gmail SMTP failed
     if (!emailSent) {
       try {
-        console.log('[Resend Fallback] Dispatching activation code via Resend API to:', email);
-        await sendViaResend(email, mailSubject, mailText, mailHtml);
+        console.log('[Brevo Fallback] Dispatching activation code via Brevo API to:', email);
+        await sendViaBrevo(email, mailSubject, mailText, mailHtml);
         emailSent = true;
-      } catch (resendErr) {
-        console.error('[Resend Fallback Error] Resend dispatch also failed:', resendErr.message);
-        mailErrorMsg += ` | Resend API failed: ${resendErr.message}`;
+      } catch (brevoErr) {
+        console.error('[Brevo Fallback Error] Brevo dispatch also failed:', brevoErr.message);
+        mailErrorMsg += ` | Brevo API failed: ${brevoErr.message}`;
       }
     }
 
@@ -343,24 +354,24 @@ router.post('/login', async (req, res) => {
             html: mailHtml
           }, 4000);
           emailSent = true;
-          console.log(`[Nodemailer] Resend code dispatched to: ${user.email}`);
+          console.log(`[Nodemailer] Code dispatched to: ${user.email}`);
         } catch (mailErr) {
-          console.error('[Nodemailer Error] Resend failed, trying Resend fallback:', mailErr.message);
+          console.error('[Nodemailer Error] Send failed, trying Brevo fallback:', mailErr.message);
           mailErrorMsg = `Gmail SMTP failed: ${mailErr.message}`;
         }
       } else {
         mailErrorMsg = 'Gmail SMTP credentials not configured';
       }
 
-      // Fallback to Resend
+      // Fallback to Brevo
       if (!emailSent) {
         try {
-          console.log('[Resend Fallback] Dispatching code via Resend API to:', user.email);
-          await sendViaResend(user.email, mailSubject, mailText, mailHtml);
+          console.log('[Brevo Fallback] Dispatching code via Brevo API to:', user.email);
+          await sendViaBrevo(user.email, mailSubject, mailText, mailHtml);
           emailSent = true;
-        } catch (resendErr) {
-          console.error('[Resend Fallback Error] Resend dispatch also failed:', resendErr.message);
-          mailErrorMsg += ` | Resend API failed: ${resendErr.message}`;
+        } catch (brevoErr) {
+          console.error('[Brevo Fallback Error] Brevo dispatch also failed:', brevoErr.message);
+          mailErrorMsg += ` | Brevo API failed: ${brevoErr.message}`;
         }
       }
 
