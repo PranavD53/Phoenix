@@ -17,9 +17,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecurephoenixjwttokensecretke
 // Configure Nodemailer Gmail Transporter
 const getTransporter = () => {
   const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_PASS;
+  const rawPass = process.env.GMAIL_PASS;
   
-  if (user && pass) {
+  if (user && rawPass) {
+    const pass = rawPass.replace(/\s+/g, '');
     return nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass }
@@ -71,6 +72,7 @@ router.post('/register', async (req, res) => {
     // Attempt to send email
     const transporter = getTransporter();
     let emailSent = false;
+    let mailErrorMsg = '';
     
     if (transporter) {
       try {
@@ -93,20 +95,23 @@ router.post('/register', async (req, res) => {
         emailSent = true;
         console.log(`[Nodemailer] Actual Gmail verification code dispatched to: ${email}`);
       } catch (mailErr) {
-        console.error('[Nodemailer Error] Failed to send email, falling back to console print:', mailErr.message);
+        console.error('[Nodemailer Error] Failed to send email:', mailErr.message);
+        mailErrorMsg = mailErr.message;
       }
+    } else {
+      mailErrorMsg = 'SMTP credentials not configured or invalid';
     }
 
-    // Always log to console as fallback/reference
-    console.log('\n==================================================');
-    console.log(`[SMTP Sandbox] Verification email sent to: ${email}`);
-    console.log(`Verification Code: ${verificationCode}`);
-    console.log('==================================================\n');
+    if (!emailSent) {
+      // Clean up the user so they can try again with correct credentials/email
+      await newUser.destroy();
+      return res.status(500).json({ 
+        error: `Failed to send verification email: ${mailErrorMsg}. Please check your email address and try again.` 
+      });
+    }
 
     res.status(201).json({
-      message: emailSent 
-        ? 'Registration successful! Verification code sent to your Gmail account.'
-        : 'Registration successful! Verification code printed to backend console.',
+      message: 'Registration successful! Verification code sent to your Gmail account.',
       is_verified: false,
       email: newUser.email
     });
@@ -200,6 +205,7 @@ router.post('/login', async (req, res) => {
       // Attempt email dispatch
       const transporter = getTransporter();
       let emailSent = false;
+      let mailErrorMsg = '';
       if (transporter) {
         try {
           await transporter.sendMail({
@@ -212,18 +218,16 @@ router.post('/login', async (req, res) => {
           emailSent = true;
         } catch (mailErr) {
           console.error('[Nodemailer Error] Resend failed:', mailErr.message);
+          mailErrorMsg = mailErr.message;
         }
+      } else {
+        mailErrorMsg = 'SMTP credentials not configured or invalid';
       }
-
-      console.log('\n==================================================');
-      console.log(`[SMTP Sandbox] Verification email resent to: ${user.email}`);
-      console.log(`Verification Code: ${code}`);
-      console.log('==================================================\n');
 
       return res.status(403).json({
         error: emailSent
           ? 'Verification required. A new code has been sent to your Gmail.'
-          : 'Please verify your Gmail address first. A new code has been printed to the backend console.',
+          : `Please verify your Gmail address. Verification code resend failed: ${mailErrorMsg}`,
         is_verified: false,
         email: user.email
       });
