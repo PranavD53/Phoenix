@@ -53,6 +53,43 @@ const getTransporter = async () => {
   return null;
 };
 
+// Configure Resend Fallback Mailer
+const sendViaResend = async (toEmail, subject, textContent, htmlContent) => {
+  const token = process.env.RESEND_API_TOKEN;
+  if (!token) {
+    throw new Error('Resend API token is not configured');
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        from: 'Phoenix AI Platform <onboarding@resend.dev>',
+        to: [toEmail],
+        subject: subject,
+        text: textContent,
+        html: htmlContent
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.message || `Resend responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('[Resend] Email sent successfully via API:', data);
+    return true;
+  } catch (err) {
+    console.error('[Resend Error] Failed to send via Resend API:', err.message);
+    throw err;
+  }
+};
+
 // User Registration with Gmail Verification (Real OTP + Console Fallback)
 router.post('/register', async (req, res) => {
   const { username, email, password, role } = req.body;
@@ -97,47 +134,61 @@ router.post('/register', async (req, res) => {
     const transporter = await getTransporter();
     let emailSent = false;
     let mailErrorMsg = '';
+
+    const mailSubject = 'Phoenix Activation Code';
+    const mailText = `Your verification code is: ${verificationCode}\n\nUse this code to activate your account.`;
+    const mailHtml = `
+      <div style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 500px;">
+        <h2 style="color: #06b6d4;">Phoenix AI Platform</h2>
+        <p>Thank you for registering! Use the code below to verify your Gmail address and activate your account:</p>
+        <div style="font-size: 24px; font-weight: bold; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 6px; display: inline-block; letter-spacing: 4px; color: #6366f1; margin: 15px 0;">
+          ${verificationCode}
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">If you did not request this code, you can ignore this email.</p>
+      </div>
+    `;
     
     if (transporter) {
       try {
         await transporter.sendMail({
           from: `"Phoenix AI Platform" <${process.env.GMAIL_USER}>`,
           to: email,
-          subject: 'Phoenix Activation Code',
-          text: `Your verification code is: ${verificationCode}\n\nUse this code to activate your account.`,
-          html: `
-            <div style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 500px;">
-              <h2 style="color: #06b6d4;">Phoenix AI Platform</h2>
-              <p>Thank you for registering! Use the code below to verify your Gmail address and activate your account:</p>
-              <div style="font-size: 24px; font-weight: bold; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 6px; display: inline-block; letter-spacing: 4px; color: #6366f1; margin: 15px 0;">
-                ${verificationCode}
-              </div>
-              <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">If you did not request this code, you can ignore this email.</p>
-            </div>
-          `
+          subject: mailSubject,
+          text: mailText,
+          html: mailHtml
         });
         emailSent = true;
-        console.log(`[Nodemailer] Actual Gmail verification code dispatched to: ${email}`);
+        console.log(`[Nodemailer] Gmail verification code dispatched to: ${email}`);
       } catch (mailErr) {
-        console.error('[Nodemailer Error] Failed to send email:', mailErr.message);
-        mailErrorMsg = mailErr.message;
+        console.error('[Nodemailer Error] Failed to send email, attempting Resend fallback:', mailErr.message);
+        mailErrorMsg = `Gmail SMTP failed: ${mailErr.message}`;
       }
     } else {
-      mailErrorMsg = 'SMTP credentials not configured or invalid';
+      mailErrorMsg = 'Gmail SMTP credentials not configured';
+    }
+
+    // Fallback to Resend API if Gmail SMTP failed
+    if (!emailSent) {
+      try {
+        console.log('[Resend Fallback] Dispatching activation code via Resend API to:', email);
+        await sendViaResend(email, mailSubject, mailText, mailHtml);
+        emailSent = true;
+      } catch (resendErr) {
+        console.error('[Resend Fallback Error] Resend dispatch also failed:', resendErr.message);
+        mailErrorMsg += ` | Resend API failed: ${resendErr.message}`;
+      }
     }
 
     if (!emailSent) {
-      // SMTP failed (likely blocked by host, e.g. Render's default outbound port block). 
-      // We do NOT destroy the user. Instead, we return a success response with the code for demo/sandbox purposes.
-      return res.status(201).json({
-        message: `Registration successful! (Note: SMTP failed to send email: ${mailErrorMsg}. For demo/testing, your verification code is: ${verificationCode})`,
-        is_verified: false,
-        email: newUser.email
+      // Clean up the user so they can try again
+      await newUser.destroy();
+      return res.status(500).json({ 
+        error: `Failed to send verification email: ${mailErrorMsg}. Please check your email configuration and try again.` 
       });
     }
 
     res.status(201).json({
-      message: 'Registration successful! Verification code sent to your Gmail account.',
+      message: 'Registration successful! Verification code sent to your email address.',
       is_verified: false,
       email: newUser.email
     });
@@ -232,28 +283,52 @@ router.post('/login', async (req, res) => {
       const transporter = await getTransporter();
       let emailSent = false;
       let mailErrorMsg = '';
+
+      const mailSubject = 'Phoenix Activation Code';
+      const mailText = `Your verification code is: ${code}`;
+      const mailHtml = `<p>Your verification code is: <strong>${code}</strong></p>`;
+
       if (transporter) {
         try {
           await transporter.sendMail({
             from: `"Phoenix AI Platform" <${process.env.GMAIL_USER}>`,
             to: user.email,
-            subject: 'Phoenix Activation Code',
-            text: `Your verification code is: ${code}`,
-            html: `<p>Your verification code is: <strong>${code}</strong></p>`
+            subject: mailSubject,
+            text: mailText,
+            html: mailHtml
           });
           emailSent = true;
+          console.log(`[Nodemailer] Resend code dispatched to: ${user.email}`);
         } catch (mailErr) {
-          console.error('[Nodemailer Error] Resend failed:', mailErr.message);
-          mailErrorMsg = mailErr.message;
+          console.error('[Nodemailer Error] Resend failed, trying Resend fallback:', mailErr.message);
+          mailErrorMsg = `Gmail SMTP failed: ${mailErr.message}`;
         }
       } else {
-        mailErrorMsg = 'SMTP credentials not configured or invalid';
+        mailErrorMsg = 'Gmail SMTP credentials not configured';
+      }
+
+      // Fallback to Resend
+      if (!emailSent) {
+        try {
+          console.log('[Resend Fallback] Dispatching code via Resend API to:', user.email);
+          await sendViaResend(user.email, mailSubject, mailText, mailHtml);
+          emailSent = true;
+        } catch (resendErr) {
+          console.error('[Resend Fallback Error] Resend dispatch also failed:', resendErr.message);
+          mailErrorMsg += ` | Resend API failed: ${resendErr.message}`;
+        }
+      }
+
+      if (!emailSent) {
+        return res.status(500).json({
+          error: `Failed to send verification code: ${mailErrorMsg}`,
+          is_verified: false,
+          email: user.email
+        });
       }
 
       return res.status(403).json({
-        error: emailSent
-          ? 'Verification required. A new code has been sent to your Gmail.'
-          : `Please verify your Gmail address. (SMTP resend failed: ${mailErrorMsg}. For demo/testing, your code is: ${code})`,
+        error: 'Verification required. A new code has been sent to your email.',
         is_verified: false,
         email: user.email
       });
