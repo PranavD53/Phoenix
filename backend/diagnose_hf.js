@@ -12,7 +12,6 @@ console.log('Using HF Key:', HF_KEY ? 'Present (starts with ' + HF_KEY.slice(0, 
 const models = [
   'Qwen/Qwen2.5-Coder-7B-Instruct',
   'Qwen/Qwen2.5-7B-Instruct',
-  'microsoft/Phi-3-mini-4k-instruct',
   'meta-llama/Llama-3.2-3B-Instruct',
   'meta-llama/Llama-3.3-70B-Instruct',
   'mistralai/Mistral-7B-Instruct-v0.3'

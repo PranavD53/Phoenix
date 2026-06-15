@@ -109,7 +109,7 @@ export const queryHuggingFace = async (modelName, messages) => {
             content: m.content
           }))
         ],
-        max_tokens: 800,
+        max_tokens: 2048,
         temperature: 0.7
       },
       {
@@ -146,7 +146,7 @@ export const queryHuggingFace = async (modelName, messages) => {
       {
         model: model,
         prompt: formattedPrompt,
-        max_tokens: 500,
+        max_tokens: 2048,
         temperature: 0.7
       },
       {

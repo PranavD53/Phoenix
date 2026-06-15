@@ -151,11 +151,31 @@ const CodeBlock = ({ code, language }) => {
 
 // Central Markdown Parser
 const MarkdownRenderer = ({ content }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current && window.renderMathInElement) {
+      try {
+        window.renderMathInElement(containerRef.current, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false }
+          ],
+          throwOnError: false
+        });
+      } catch (err) {
+        console.error('KaTeX rendering error:', err);
+      }
+    }
+  }, [content]);
+
   if (!content) return null;
   const parts = content.split(/```/);
 
   return (
-    <div className="markdown-body">
+    <div className="markdown-body" ref={containerRef}>
       {parts.map((part, index) => {
         if (index % 2 === 1) {
           const lines = part.split('\n');
@@ -278,7 +298,7 @@ export default function App() {
   // Model Benchmarking States
   const [benchmarkPrompt, setBenchmarkPrompt] = useState('');
   const [modelA, setModelA] = useState('Qwen/Qwen2.5-Coder-7B-Instruct');
-  const [modelB, setModelB] = useState('microsoft/Phi-3-mini-4k-instruct');
+  const [modelB, setModelB] = useState('meta-llama/Llama-3.2-3B-Instruct');
   const [benchmarkResults, setBenchmarkResults] = useState(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
 
@@ -1582,7 +1602,6 @@ export default function App() {
               >
                 <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder 7B (Free)</option>
                 <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General 7B (Free)</option>
-                <option value="microsoft/Phi-3-mini-4k-instruct">Microsoft Phi 3 Mini (Free)</option>
                 <option value="meta-llama/Llama-3.2-3B-Instruct">Llama 3.2 Instruct (Premium)</option>
                 <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 Large 70B (Premium)</option>
                 <option value="mistralai/Mistral-7B-Instruct-v0.3">Mistral 7B v0.3 (Premium)</option>
@@ -2299,7 +2318,6 @@ export default function App() {
                     <select className="form-input" style={{ width: '180px' }} value={modelA} onChange={e => setModelA(e.target.value)}>
                       <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (Free)</option>
                       <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General (Free)</option>
-                      <option value="microsoft/Phi-3-mini-4k-instruct">Phi 3 Mini (Free)</option>
                     </select>
                   </div>
 
