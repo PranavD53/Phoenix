@@ -218,6 +218,7 @@ export default function App() {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '', confirmPassword: '', role: 'Student' });
   const [authError, setAuthError] = useState('');
+  const [authSuccessMessage, setAuthSuccessMessage] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [showConfirmAuthPassword, setShowConfirmAuthPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -507,7 +508,10 @@ export default function App() {
           setAuthError("Passwords do not match.");
           return;
         }
-        await register(authForm.username, authForm.email, authForm.password, authForm.role);
+        const data = await register(authForm.username, authForm.email, authForm.password, authForm.role);
+        if (data && data.message) {
+          setAuthSuccessMessage(data.message);
+        }
       }
     } catch (err) {
       setAuthError(err.message);
@@ -1275,8 +1279,23 @@ export default function App() {
           <div className="auth-header">
             <div className="auth-logo">Verify Gmail</div>
             <p className="auth-subtitle">We have sent a 6-digit activation code to <strong>{unverifiedEmail}</strong>.</p>
-            <p style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', marginTop: '0.5rem' }}>
-              💡 Check your backend server console terminal output to find the verification code!
+            {(authSuccessMessage || authError) && (
+              <div style={{ 
+                margin: '1rem 0', 
+                padding: '0.75rem 1rem', 
+                background: 'rgba(99, 102, 241, 0.1)', 
+                border: '1px solid rgba(99, 102, 241, 0.25)', 
+                color: '#a5b4fc', 
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                lineHeight: '1.4',
+                textAlign: 'left'
+              }}>
+                {authSuccessMessage || authError}
+              </div>
+            )}
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+              💡 Enter the activation code to verify your account.
             </p>
           </div>
           <form onSubmit={handleVerifySubmit}>

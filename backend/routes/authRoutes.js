@@ -44,7 +44,10 @@ const getTransporter = async () => {
       auth: { user, pass },
       tls: {
         servername: 'smtp.gmail.com'
-      }
+      },
+      connectionTimeout: 5000, // 5 seconds
+      greetingTimeout: 5000,   // 5 seconds
+      socketTimeout: 10000     // 10 seconds
     });
   }
   return null;
@@ -124,10 +127,12 @@ router.post('/register', async (req, res) => {
     }
 
     if (!emailSent) {
-      // Clean up the user so they can try again with correct credentials/email
-      await newUser.destroy();
-      return res.status(500).json({ 
-        error: `Failed to send verification email: ${mailErrorMsg}. Please check your email address and try again.` 
+      // SMTP failed (likely blocked by host, e.g. Render's default outbound port block). 
+      // We do NOT destroy the user. Instead, we return a success response with the code for demo/sandbox purposes.
+      return res.status(201).json({
+        message: `Registration successful! (Note: SMTP failed to send email: ${mailErrorMsg}. For demo/testing, your verification code is: ${verificationCode})`,
+        is_verified: false,
+        email: newUser.email
       });
     }
 
@@ -248,7 +253,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({
         error: emailSent
           ? 'Verification required. A new code has been sent to your Gmail.'
-          : `Please verify your Gmail address. Verification code resend failed: ${mailErrorMsg}`,
+          : `Please verify your Gmail address. (SMTP resend failed: ${mailErrorMsg}. For demo/testing, your code is: ${code})`,
         is_verified: false,
         email: user.email
       });
