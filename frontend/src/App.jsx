@@ -33,7 +33,9 @@ import {
   UploadCloud,
   Volume2,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -215,6 +217,10 @@ export default function App() {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '', role: 'Student' });
   const [authError, setAuthError] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationError, setVerificationError] = useState('');
 
@@ -1293,14 +1299,23 @@ export default function App() {
 
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-input"
-                required
-                placeholder="Enter Password"
-                value={authForm.password}
-                onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
-              />
+              <div className="password-wrapper">
+                <input
+                  type={showAuthPassword ? "text" : "password"}
+                  className="form-input"
+                  required
+                  placeholder="Enter Password"
+                  value={authForm.password}
+                  onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowAuthPassword(!showAuthPassword)}
+                >
+                  {showAuthPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             {!isLoginMode && (
@@ -2375,35 +2390,62 @@ export default function App() {
                     <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Current Password</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="••••••••"
-                          value={passwordForm.oldPassword}
-                          onChange={e => setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
-                        />
+                        <div className="password-wrapper">
+                          <input
+                            type={showOldPassword ? "text" : "password"}
+                            className="form-input"
+                            placeholder="••••••••"
+                            value={passwordForm.oldPassword}
+                            onChange={e => setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowOldPassword(!showOldPassword)}
+                          >
+                            {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
                       </div>
                       
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">New Password</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="••••••••"
-                          value={passwordForm.newPassword}
-                          onChange={e => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                        />
+                        <div className="password-wrapper">
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            className="form-input"
+                            placeholder="••••••••"
+                            value={passwordForm.newPassword}
+                            onChange={e => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                          >
+                            {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Confirm New Password</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="••••••••"
-                          value={passwordForm.confirmPassword}
-                          onChange={e => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        />
+                        <div className="password-wrapper">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            className="form-input"
+                            placeholder="••••••••"
+                            value={passwordForm.confirmPassword}
+                            onChange={e => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
                       </div>
 
                       <button type="submit" className="btn-primary" style={{ background: 'var(--primary-gradient)', marginTop: '0.5rem' }}>
