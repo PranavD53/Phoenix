@@ -74,7 +74,7 @@ app.get('/api/health/ai-test', async (req, res) => {
     const axios = (await import('axios')).default;
     
     const response = await axios.post(
-      `https://router.huggingface.co/hf-inference/models/${model}`,
+      `https://api-inference.huggingface.co/models/${model}`,
       { inputs: 'Hello, what is your name?', parameters: { max_new_tokens: 20 } },
       {
         headers: { Authorization: `Bearer ${hfKey}` },
