@@ -18,18 +18,33 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET ;
 
 // Configure Nodemailer Gmail Transporter
-const getTransporter = () => {
+const getTransporter = async () => {
   const user = process.env.GMAIL_USER;
   const rawPass = process.env.GMAIL_PASS;
   
   if (user && rawPass) {
     const pass = rawPass.replace(/\s+/g, '');
+    
+    // Resolve smtp.gmail.com to IPv4 dynamically to avoid ENETUNREACH on IPv6-unfriendly hosting environments
+    let host = 'smtp.gmail.com';
+    try {
+      const { resolve4 } = await import('dns/promises');
+      const addresses = await resolve4('smtp.gmail.com');
+      if (addresses && addresses.length > 0) {
+        host = addresses[0];
+      }
+    } catch (dnsErr) {
+      console.error('[DNS SMTP Error] Failed to resolve smtp.gmail.com:', dnsErr.message);
+    }
+
     return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
+      host,
       port: 465,
       secure: true,
       auth: { user, pass },
-      family: 4 // Force IPv4 to prevent ENETUNREACH on IPv6-unfriendly networks/hosts (like Render)
+      tls: {
+        servername: 'smtp.gmail.com'
+      }
     });
   }
   return null;
@@ -76,7 +91,7 @@ router.post('/register', async (req, res) => {
     });
 
     // Attempt to send email
-    const transporter = getTransporter();
+    const transporter = await getTransporter();
     let emailSent = false;
     let mailErrorMsg = '';
     
@@ -209,7 +224,7 @@ router.post('/login', async (req, res) => {
       await user.save();
 
       // Attempt email dispatch
-      const transporter = getTransporter();
+      const transporter = await getTransporter();
       let emailSent = false;
       let mailErrorMsg = '';
       if (transporter) {
