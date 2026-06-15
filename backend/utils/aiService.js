@@ -7,7 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const OLLAMA_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434';
-const HF_KEY = process.env.HF_API_KEY || '';
+const getHFKey = () => {
+  const rawKey = process.env.HF_API_KEY || process.env.HF_API_TOKEN || process.env.HF_KEY || process.env.HF_TOKEN || '';
+  return rawKey.trim().replace(/^["']|["']$/g, '');
+};
+const HF_KEY = getHFKey();
 
 // System Prompts for Chat, Interviews, and Explanations
 const SYSTEM_PROMPT = `You are Phoenix, a helpful, intelligent coding assistant and learning tutor. 
@@ -85,13 +89,58 @@ export const generateEmbedding = async (text) => {
 // Call Hugging Face Serverless API
 export const queryHuggingFace = async (modelName, messages) => {
   const model = modelName || 'Qwen/Qwen2.5-Coder-7B-Instruct';
+  
+  if (!HF_KEY) {
+    console.warn(`[Hugging Face] API Key is missing. Using mock response.`);
+    return getMockResponse(model, messages);
+  }
+
+  // Method 1: Try OpenAI-compatible Chat Completion API (v1/chat/completions)
   try {
-    if (!HF_KEY) {
-      return getMockResponse(model, messages);
+    console.log(`[Hugging Face] Querying chat completions for model: ${model}`);
+    const response = await axios.post(
+      'https://api-inference.huggingface.co/v1/chat/completions',
+      {
+        model: model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages.map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          }))
+        ],
+        max_tokens: 800,
+        temperature: 0.7
+      },
+      {
+        headers: { 
+          'Authorization': `Bearer ${HF_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 25000
+      }
+    );
+
+    if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
+      const outputText = response.data.choices[0].message.content.trim();
+      return {
+        text: outputText,
+        model: model,
+        latency_ms: 0
+      };
     }
+  } catch (chatErr) {
+    console.warn(`[Hugging Face] Chat completions failed for ${model}, trying raw text generation...`, chatErr.message);
+    if (chatErr.response) {
+      console.warn(`[Hugging Face] Chat completions error details:`, JSON.stringify(chatErr.response.data));
+    }
+  }
 
+  // Method 2: Fallback to raw Text Generation API (models/{model})
+  try {
     const formattedPrompt = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n') + '\nAssistant:';
-
+    
+    console.log(`[Hugging Face] Querying raw text generation for model: ${model}`);
     const response = await axios.post(
       `https://api-inference.huggingface.co/models/${model}`,
       { inputs: formattedPrompt, parameters: { max_new_tokens: 500, temperature: 0.7 } },
@@ -115,10 +164,10 @@ export const queryHuggingFace = async (modelName, messages) => {
       model: model,
       latency_ms: 0
     };
-  } catch (err) {
-    console.warn(`Hugging Face error (${model}):`, err.message);
-    if (err.response) {
-      console.warn(`Hugging Face response details:`, JSON.stringify(err.response.data));
+  } catch (textErr) {
+    console.warn(`[Hugging Face] Text generation failed for ${model}:`, textErr.message);
+    if (textErr.response) {
+      console.warn(`[Hugging Face] Text generation error details:`, JSON.stringify(textErr.response.data));
     }
     return getMockResponse(model, messages);
   }

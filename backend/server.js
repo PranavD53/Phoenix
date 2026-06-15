@@ -34,9 +34,69 @@ app.use('/api/interview', interviewRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Base route for API information
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Phoenix AI Platform API',
+    status: 'operational',
+    health: '/api/health',
+    ai_diagnostics: '/api/health/ai-test'
+  });
+});
+
 // Base route for API verification
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date() });
+});
+
+// AI Diagnostics Endpoint
+app.get('/api/health/ai-test', async (req, res) => {
+  const rawKey = process.env.HF_API_KEY || process.env.HF_API_TOKEN || process.env.HF_KEY || process.env.HF_TOKEN || '';
+  const hfKey = rawKey.trim().replace(/^["']|["']$/g, '');
+  const result = {
+    apiKeyPresent: !!hfKey,
+    apiKeyLength: hfKey.length,
+    apiKeyPrefix: hfKey ? hfKey.substring(0, 7) + '...' : 'none',
+    timestamp: new Date()
+  };
+
+  if (!hfKey) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Hugging Face API key is missing in environment variables (HF_API_KEY, HF_API_TOKEN, HF_KEY, HF_TOKEN).',
+      details: result
+    });
+  }
+
+  try {
+    const model = 'Qwen/Qwen2.5-Coder-7B-Instruct';
+    const startTime = Date.now();
+    const axios = (await import('axios')).default;
+    
+    const response = await axios.post(
+      `https://api-inference.huggingface.co/models/${model}`,
+      { inputs: 'Hello, what is your name?', parameters: { max_new_tokens: 20 } },
+      {
+        headers: { Authorization: `Bearer ${hfKey}` },
+        timeout: 15000
+      }
+    );
+
+    res.json({
+      status: 'success',
+      latency_ms: Date.now() - startTime,
+      model: model,
+      response: response.data,
+      details: result
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'failed',
+      message: err.message,
+      huggingFaceResponse: err.response ? err.response.data : null,
+      details: result
+    });
+  }
 });
 
 // Database Synchronization & Initial Seed

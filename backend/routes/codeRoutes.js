@@ -2,7 +2,7 @@ import express from 'express';
 import { Snippet } from '../config/models.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { runCode } from '../utils/codeRunner.js';
-import { queryOllama } from '../utils/aiService.js';
+import { queryHuggingFace } from '../utils/aiService.js';
 
 const router = express.Router();
 
