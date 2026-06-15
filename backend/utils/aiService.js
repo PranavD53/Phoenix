@@ -99,7 +99,7 @@ export const queryHuggingFace = async (modelName, messages) => {
   try {
     console.log(`[Hugging Face] Querying chat completions for model: ${model}`);
     const response = await axios.post(
-      'https://api-inference.huggingface.co/v1/chat/completions',
+      'https://router.huggingface.co/v1/chat/completions',
       {
         model: model,
         messages: [
@@ -142,7 +142,7 @@ export const queryHuggingFace = async (modelName, messages) => {
     
     console.log(`[Hugging Face] Querying raw text generation for model: ${model}`);
     const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${model}`,
+      `https://router.huggingface.co/hf-inference/models/${model}`,
       { inputs: formattedPrompt, parameters: { max_new_tokens: 500, temperature: 0.7 } },
       {
         headers: { Authorization: `Bearer ${HF_KEY}` },
