@@ -254,6 +254,13 @@ router.post('/benchmark', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Please provide prompt and array of model names' });
   }
 
+  // Enforce premium plan restrictions on benchmarking
+  const premiumModels = ['meta-llama/Llama-3.3-70B-Instruct'];
+  const hasPremiumModel = models.some(m => premiumModels.includes(m));
+  if (hasPremiumModel && req.user.plan !== 'Premium' && req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Premium models are not allowed on the Free plan' });
+  }
+
   try {
     const promises = models.map(async (model) => {
       const startTime = Date.now();

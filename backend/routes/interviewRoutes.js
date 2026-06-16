@@ -5,7 +5,7 @@ import { queryHuggingFace } from '../utils/aiService.js';
 
 const router = express.Router();
 
-// Generate Mock Interview Questions (2 MCQs, 2 Concept, 1 Coding)
+// Generate Mock Interview Questions (2 MCQs, 2 Concept, 1 Scenario)
 router.post('/generate', authenticateToken, async (req, res) => {
   const { topic, type } = req.body;
 
@@ -18,7 +18,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 The questions MUST follow this exact structure:
 - Question 1 & 2: Multiple Choice Questions (MCQs) with options A, B, C, D. Include the question followed by option labels.
 - Question 3 & 4: Deep theoretical concept questions.
-- Question 5: A programming coding challenge or mathematical problem.
+- Question 5: An open-ended scenario-based, problem-solving, or behavioral interview question.
 
 Return the output as a clean, valid JSON array of strings, like this:
 [
@@ -26,11 +26,11 @@ Return the output as a clean, valid JSON array of strings, like this:
   "Question 2 (MCQ): Which... \\n A) Option A \\n B) Option B \\n C) Option C \\n D) Option D",
   "Question 3 (Concept): Explain...",
   "Question 4 (Concept): Discuss...",
-  "Question 5 (Coding/Problem): Write a function to..."
+  "Question 5 (Concept): Describe..."
 ]
 Do not write any introductory or trailing text. Output ONLY the JSON block.`;
 
-    const aiResponse = await queryHuggingFace('Qwen/Qwen2.5-Coder-7B-Instruct', [{ role: 'user', content: prompt }]);
+    const aiResponse = await queryHuggingFace('google/gemma-2-9b-it', [{ role: 'user', content: prompt }]);
     
     let questions = [];
     try {
@@ -44,7 +44,7 @@ Do not write any introductory or trailing text. Output ONLY the JSON block.`;
           `Question 2 (MCQ): Which database normalization form ensures there are no transitive dependencies?\\nA) First Normal Form (1NF)\\nB) Second Normal Form (2NF)\\nC) Third Normal Form (3NF)\\nD) Boyce-Codd Normal Form (BCNF)`,
           `Question 3 (Concept): Explain the difference between optimistic and pessimistic locking in database transaction management.`,
           `Question 4 (Concept): Discuss how virtual DOM increases rendering efficiency in modern web libraries.`,
-          `Question 5 (Coding): Write a Python function that checks if a string is a palindrome. Output only syntax-valid code.`
+          `Question 5 (Concept): Describe a situation where you had to optimize a slow API endpoint or database query. How did you identify the bottleneck and what steps did you take to resolve it?`
         ];
       } else {
         questions = [
@@ -52,7 +52,7 @@ Do not write any introductory or trailing text. Output ONLY the JSON block.`;
           `Question 2 (MCQ): A developer solves 3 bugs in 4 hours. How many hours will it take to solve 15 bugs at the same rate?\\nA) 12 hours\\nB) 15 hours\\nC) 20 hours\\nD) 24 hours`,
           `Question 3 (Concept): Explain how Bayes' Theorem calculates conditional probability when new evidence is introduced.`,
           `Question 4 (Concept): Two people are playing a game of coin-toss. If the coin is biased (60% heads), discuss the optimal betting strategy.`,
-          `Question 5 (Problem): Solve: A father is three times as old as his son. In 12 years, he will be twice as old as his son. Calculate their current ages.`
+          `Question 5 (Concept): Describe a time when you had to make a critical decision with limited data or under tight deadlines. How did you evaluate the risks?`
         ];
       }
     }
@@ -85,14 +85,24 @@ router.post('/evaluate', authenticateToken, async (req, res) => {
       score: 0,
       q1_score: 0,
       q1_feedback: 'Question not attempted.',
+      q1_correct_answer: 'N/A',
+      q1_reason: 'N/A',
       q2_score: 0,
       q2_feedback: 'Question not attempted.',
+      q2_correct_answer: 'N/A',
+      q2_reason: 'N/A',
       q3_score: 0,
       q3_feedback: 'Question not attempted.',
+      q3_correct_answer: 'Detailed response explaining the core concept.',
+      q3_reason: 'N/A',
       q4_score: 0,
       q4_feedback: 'Question not attempted.',
+      q4_correct_answer: 'Detailed response explaining the core concept.',
+      q4_reason: 'N/A',
       q5_score: 0,
       q5_feedback: 'Question not attempted.',
+      q5_correct_answer: 'Detailed scenario analysis response.',
+      q5_reason: 'N/A',
       strengths: ['None'],
       weaknesses: ['Did not attempt the interview. All answer inputs were left blank.'],
       suggestions: ['Please type or speak detailed responses to each question in order to receive feedback and a grade.'],
@@ -147,26 +157,39 @@ ${interviewDataStr}
 
 Instructions:
 1. Evaluate each of the 5 answers individually (each worth up to 20 points):
-   - Question 1 (MCQ - max 20 points): Check if the student selected the correct option letter. If correct, 20 points; else 0 points. Explain why.
-   - Question 2 (MCQ - max 20 points): Check if the student selected the correct option letter. If correct, 20 points; else 0 points. Explain why.
-   - Question 3 (Concept - max 20 points): Grade on theoretical depth, terms, and conceptual accuracy.
-   - Question 4 (Concept - max 20 points): Grade on theoretical depth, terms, and conceptual accuracy.
-   - Question 5 (Coding/Problem - max 20 points): Inspect code logic/syntax or math calculations. If invalid or empty, assign 0 points.
+   - Question 1 (MCQ - max 20 points): Check which option (A, B, C, or D) is the correct answer. Compare it with the student's answer. If correct, 20 points; else 0 points.
+   - Question 2 (MCQ - max 20 points): Check which option (A, B, C, or D) is the correct answer. Compare it with the student's answer. If correct, 20 points; else 0 points.
+   - Question 3 (Concept - max 20 points): Grade on theoretical depth, terms, and conceptual accuracy. Give a score from 0 to 20.
+   - Question 4 (Concept - max 20 points): Grade on theoretical depth, terms, and conceptual accuracy. Give a score from 0 to 20.
+   - Question 5 (Scenario/Behavioral - max 20 points): Grade on problem-solving quality, suitability, and professionalism. Give a score from 0 to 20.
 2. Sum the scores for Q1-Q5 to calculate the final score (0-100). Do not give free points. If they left all answers blank, the score must be 0.
-3. Critique the student's communication clarity, verbal flow, and answer structuring.
-4. Output your response as a valid JSON object matching this schema exactly:
+3. For each question, extract or write:
+   - The correct answer (for MCQs, specify the correct option letter and its text, e.g. "B) It allows an inner function..."; for Concepts/Scenario, give a concise summary of what the correct explanation should include).
+   - The reasoning explaining why that answer is correct.
+4. Critique the student's communication clarity, verbal flow, and answer structuring.
+5. Output your response as a valid JSON object matching this schema exactly:
 {
   "score": 65,
   "q1_score": 20,
-  "q1_feedback": "Explanation of correctness...",
+  "q1_feedback": "Feedback for Q1...",
+  "q1_correct_answer": "Correct option for Q1...",
+  "q1_reason": "Reason for Q1...",
   "q2_score": 0,
-  "q2_feedback": "Explanation of incorrectness...",
+  "q2_feedback": "Feedback for Q2...",
+  "q2_correct_answer": "Correct option for Q2...",
+  "q2_reason": "Reason for Q2...",
   "q3_score": 15,
   "q3_feedback": "Feedback for Q3...",
+  "q3_correct_answer": "Core requirements for Q3...",
+  "q3_reason": "Reasoning/Explanation for Q3...",
   "q4_score": 10,
   "q4_feedback": "Feedback for Q4...",
+  "q4_correct_answer": "Core requirements for Q4...",
+  "q4_reason": "Reasoning/Explanation for Q4...",
   "q5_score": 20,
   "q5_feedback": "Feedback for Q5...",
+  "q5_correct_answer": "Core requirements for Q5...",
+  "q5_reason": "Reasoning/Explanation for Q5...",
   "strengths": ["Strengths point 1", "Strengths point 2"],
   "weaknesses": ["Weakness point 1", "Weakness point 2"],
   "suggestions": ["Suggestion point 1", "Suggestion point 2"],
@@ -174,23 +197,33 @@ Instructions:
 }
 Do not write any introductory or trailing text. Output ONLY the JSON block.`;
 
-    const aiResponse = await queryHuggingFace('Qwen/Qwen2.5-Coder-7B-Instruct', [{ role: 'user', content: prompt }]);
+    const aiResponse = await queryHuggingFace('google/gemma-2-9b-it', [{ role: 'user', content: prompt }]);
     
     let evaluationResult = {
       score: 40,
       q1_score: 20,
       q1_feedback: 'Option verified.',
+      q1_correct_answer: 'Refer to MCQ Option key',
+      q1_reason: 'The correct option represents the true definition/behavior.',
       q2_score: 0,
       q2_feedback: 'Option incorrect.',
+      q2_correct_answer: 'Refer to MCQ Option key',
+      q2_reason: 'The correct option represents the true definition/behavior.',
       q3_score: 10,
       q3_feedback: 'Partial concept coverage.',
+      q3_correct_answer: 'Detailed response explaining the core concept.',
+      q3_reason: 'Detailed conceptual matching.',
       q4_score: 10,
       q4_feedback: 'Partial concept coverage.',
+      q4_correct_answer: 'Detailed response explaining the core concept.',
+      q4_reason: 'Detailed conceptual matching.',
       q5_score: 0,
-      q5_feedback: 'Coding challenge did not run or was incorrect.',
+      q5_feedback: 'Scenario response was missing or insufficient.',
+      q5_correct_answer: 'Detailed scenario analysis response.',
+      q5_reason: 'Analysis of the specified scenario parameters.',
       strengths: ['Basic understanding shown.'],
-      weaknesses: ['Lack of detail in concept and code blocks.'],
-      suggestions: ['Practice writing robust code syntax and review core definitions.'],
+      weaknesses: ['Lack of detail in concept and scenario responses.'],
+      suggestions: ['Practice writing robust and detailed conceptual explanations.'],
       communication_feedback: 'Maintained basic communication formatting.'
     };
 
@@ -260,6 +293,24 @@ router.get('/history', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Fetch interview history error:', err);
     res.status(500).json({ error: 'Failed to load interview history' });
+  }
+});
+
+// Delete Mock Interview Record
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+
+  try {
+    const interview = await Interview.findOne({ where: { id, user_id: userId } });
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview record not found' });
+    }
+    await interview.destroy();
+    res.json({ success: true, message: 'Interview record deleted successfully' });
+  } catch (err) {
+    console.error('Delete interview error:', err);
+    res.status(500).json({ error: 'Failed to delete interview record' });
   }
 });
 

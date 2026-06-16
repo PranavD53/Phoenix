@@ -286,6 +286,8 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [interviewAnswers, setInterviewAnswers] = useState(['', '', '', '', '']);
   const [interviewStep, setInterviewStep] = useState('setup'); // setup -> active -> scoring
+  const currentQ = interviewQuestions[currentQuestionIndex];
+  const isCurrentMcq = !!(currentQ && (currentQ.toLowerCase().includes('mcq') || currentQ.includes('A)') || currentQ.includes('A\n') || currentQ.includes('A.')));
   const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
   const [isEvaluatingInterview, setIsEvaluatingInterview] = useState(false);
   const [interviewResult, setInterviewResult] = useState(null);
@@ -301,7 +303,7 @@ export default function App() {
   // Model Benchmarking States
   const [benchmarkPrompt, setBenchmarkPrompt] = useState('');
   const [modelA, setModelA] = useState('Qwen/Qwen2.5-Coder-7B-Instruct');
-  const [modelB, setModelB] = useState('meta-llama/Llama-3.2-3B-Instruct');
+  const [modelB, setModelB] = useState('google/gemma-2-9b-it');
   const [benchmarkResults, setBenchmarkResults] = useState(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
 
@@ -565,15 +567,33 @@ export default function App() {
   const handleModelChange = (e) => {
     const val = e.target.value;
     const premiumModels = [
-      'meta-llama/Llama-3.2-3B-Instruct',
-      'meta-llama/Llama-3.3-70B-Instruct',
-      'mistralai/Mistral-7B-Instruct-v0.3'
+      'meta-llama/Llama-3.3-70B-Instruct'
     ];
     if (premiumModels.includes(val) && user.plan !== 'Premium' && user.role !== 'Admin') {
-      alert('This is a Premium model. Upgrading to the Premium plan in the Subscription Hub unlocks access to Llama 3.2, Llama 3.3, and Mistral on Hugging Face!');
+      alert('This is a Premium model. Upgrading to the Premium plan in the Subscription Hub unlocks access to Llama 3.3 Large 70B!');
       return;
     }
     setSelectedModel(val);
+  };
+
+  const handleModelAChange = (e) => {
+    const val = e.target.value;
+    const premiumModels = ['meta-llama/Llama-3.3-70B-Instruct'];
+    if (premiumModels.includes(val) && user.plan !== 'Premium' && user.role !== 'Admin') {
+      alert('Llama 3.3 is a Premium model. Upgrading to the Premium plan in the Subscription Hub unlocks access to Llama 3.3 Large 70B!');
+      return;
+    }
+    setModelA(val);
+  };
+
+  const handleModelBChange = (e) => {
+    const val = e.target.value;
+    const premiumModels = ['meta-llama/Llama-3.3-70B-Instruct'];
+    if (premiumModels.includes(val) && user.plan !== 'Premium' && user.role !== 'Admin') {
+      alert('Llama 3.3 is a Premium model. Upgrading to the Premium plan in the Subscription Hub unlocks access to Llama 3.3 Large 70B!');
+      return;
+    }
+    setModelB(val);
   };
 
   const handleVerifySubmit = async (e) => {
@@ -933,6 +953,25 @@ export default function App() {
     }
   };
 
+  const handleInterviewDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this mock interview record?')) return;
+    try {
+      const res = await fetch(`${API_URL}/interview/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInterviewHistory(prev => prev.filter(ih => ih.id !== id));
+      } else {
+        alert(data.error || 'Failed to delete interview record');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
+
   const handlePrintInterviewReport = () => {
     window.print();
   };
@@ -1105,6 +1144,17 @@ export default function App() {
   // Benchmarking runner
   const handleRunBenchmark = async () => {
     if (!benchmarkPrompt.trim()) return alert('Please enter a benchmark prompt.');
+
+    const premiumModels = ['meta-llama/Llama-3.3-70B-Instruct'];
+    const isModelAPremium = premiumModels.includes(modelA);
+    const isModelBPremium = premiumModels.includes(modelB);
+    const isPremiumUser = user.plan === 'Premium' || user.role === 'Admin';
+    
+    if ((isModelAPremium || isModelBPremium) && !isPremiumUser) {
+      alert('One or more selected models are Premium. Upgrading to the Premium plan in the Subscription Hub unlocks access to Llama 3.3 Large 70B!');
+      return;
+    }
+
     setIsBenchmarking(true);
     setBenchmarkResults(null);
     try {
@@ -1620,9 +1670,9 @@ export default function App() {
               >
                 <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder 7B (Free)</option>
                 <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General 7B (Free)</option>
-                <option value="meta-llama/Llama-3.2-3B-Instruct">Llama 3.2 Instruct (Premium)</option>
+                <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
+                <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
                 <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 Large 70B (Premium)</option>
-                <option value="mistralai/Mistral-7B-Instruct-v0.3">Mistral 7B v0.3 (Premium)</option>
               </select>
             </div>
           )}
@@ -2061,56 +2111,64 @@ export default function App() {
                 <div className="interview-active-box">
                   <div className="question-card">
                     <div className="sidebar-logo" style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                      Question {currentQuestionIndex + 1} of 5
+                      Question {currentQuestionIndex + 1} of {interviewQuestions.length}
                     </div>
                     {renderQuestionCardContent(interviewQuestions[currentQuestionIndex])}
                   </div>
 
                   <div className="answer-card">
-                    <label className="form-label">Your Answer</label>
-                    <textarea
-                      className="form-input"
-                      rows={6}
-                      style={{ fontFamily: 'inherit', fontSize: '0.95rem' }}
-                      placeholder="Type your detailed response here..."
-                      value={interviewAnswers[currentQuestionIndex] || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setInterviewAnswers(prev => {
-                          const updated = [...prev];
-                          updated[currentQuestionIndex] = val;
-                          return updated;
-                        });
-                      }}
-                    />
+                    {!isCurrentMcq ? (
+                      <>
+                        <label className="form-label">Your Answer</label>
+                        <textarea
+                          className="form-input"
+                          rows={6}
+                          style={{ fontFamily: 'inherit', fontSize: '0.95rem' }}
+                          placeholder="Type your detailed response here..."
+                          value={interviewAnswers[currentQuestionIndex] || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setInterviewAnswers(prev => {
+                              const updated = [...prev];
+                              updated[currentQuestionIndex] = val;
+                              return updated;
+                            });
+                          }}
+                        />
 
-                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'center' }}>
-                      <button
-                        className={`btn-primary ${isInterviewVoiceActive ? 'dictation-active' : ''}`}
-                        style={{
-                          width: 'auto',
-                          background: isInterviewVoiceActive ? 'var(--status-error)' : 'rgba(255,255,255,0.06)',
-                          color: 'var(--text-primary)',
-                          boxShadow: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.4rem 1.25rem',
-                          fontSize: '0.85rem',
-                          borderRadius: '8px',
-                          border: isInterviewVoiceActive ? 'none' : '1px solid var(--glass-border)'
-                        }}
-                        onClick={toggleInterviewVoice}
-                      >
-                        {isInterviewVoiceActive ? <MicOff size={14} /> : <Mic size={14} />}
-                        <span>{isInterviewVoiceActive ? 'Stop Speaking' : 'Speak Answer'}</span>
-                      </button>
-                      {isInterviewVoiceActive && (
-                        <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }}>
-                          Dictating response... Speak clearly.
-                        </span>
-                      )}
-                    </div>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'center' }}>
+                          <button
+                            className={`btn-primary ${isInterviewVoiceActive ? 'dictation-active' : ''}`}
+                            style={{
+                              width: 'auto',
+                              background: isInterviewVoiceActive ? 'var(--status-error)' : 'rgba(255,255,255,0.06)',
+                              color: 'var(--text-primary)',
+                              boxShadow: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              padding: '0.4rem 1.25rem',
+                              fontSize: '0.85rem',
+                              borderRadius: '8px',
+                              border: isInterviewVoiceActive ? 'none' : '1px solid var(--glass-border)'
+                            }}
+                            onClick={toggleInterviewVoice}
+                          >
+                            {isInterviewVoiceActive ? <MicOff size={14} /> : <Mic size={14} />}
+                            <span>{isInterviewVoiceActive ? 'Stop Speaking' : 'Speak Answer'}</span>
+                          </button>
+                          {isInterviewVoiceActive && (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }}>
+                              Dictating response... Speak clearly.
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ padding: '1rem', background: 'rgba(6, 182, 212, 0.05)', border: '1px dashed rgba(6, 182, 212, 0.3)', borderRadius: '8px', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Multiple Choice Question:</span> Please select one of the options above to answer.
+                      </div>
+                    )}
 
                     <div className="flex-row-gap" style={{ justifyContent: 'space-between', marginTop: '1.5rem' }}>
                       <button
@@ -2128,7 +2186,7 @@ export default function App() {
                         Previous Question
                       </button>
 
-                      {currentQuestionIndex < 4 ? (
+                      {currentQuestionIndex < interviewQuestions.length - 1 ? (
                         <button
                           className="btn-primary"
                           style={{ width: 'auto' }}
@@ -2156,7 +2214,7 @@ export default function App() {
                   </div>
 
                   <div className="progress-dots">
-                    {[0, 1, 2, 3, 4].map(i => (
+                    {interviewQuestions.map((_, i) => (
                       <div
                         key={i}
                         className={`progress-dot ${i === currentQuestionIndex ? 'active' : ''} ${interviewAnswers[i] ? 'completed' : ''}`}
@@ -2191,6 +2249,16 @@ export default function App() {
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q1_score} / 20 pts</span>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q1_feedback}</p>
+                            {interviewResult.q1_correct_answer && (
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q1_correct_answer}
+                              </div>
+                            )}
+                            {interviewResult.q1_reason && (
+                              <div style={{ marginTop: '0.2rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Reason:</span> {interviewResult.q1_reason}
+                              </div>
+                            )}
                           </div>
                           <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.85rem' }}>
@@ -2198,6 +2266,16 @@ export default function App() {
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q2_score} / 20 pts</span>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q2_feedback}</p>
+                            {interviewResult.q2_correct_answer && (
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q2_correct_answer}
+                              </div>
+                            )}
+                            {interviewResult.q2_reason && (
+                              <div style={{ marginTop: '0.2rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Reason:</span> {interviewResult.q2_reason}
+                              </div>
+                            )}
                           </div>
                           <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.85rem' }}>
@@ -2205,6 +2283,16 @@ export default function App() {
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q3_score} / 20 pts</span>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q3_feedback}</p>
+                            {interviewResult.q3_correct_answer && (
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q3_correct_answer}
+                              </div>
+                            )}
+                            {interviewResult.q3_reason && (
+                              <div style={{ marginTop: '0.2rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Reason:</span> {interviewResult.q3_reason}
+                              </div>
+                            )}
                           </div>
                           <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.85rem' }}>
@@ -2212,13 +2300,33 @@ export default function App() {
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q4_score} / 20 pts</span>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q4_feedback}</p>
+                            {interviewResult.q4_correct_answer && (
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q4_correct_answer}
+                              </div>
+                            )}
+                            {interviewResult.q4_reason && (
+                              <div style={{ marginTop: '0.2rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Reason:</span> {interviewResult.q4_reason}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.85rem' }}>
-                              <span>Q5 (Coding/Problem)</span>
+                              <span>Q5 (Scenario/Behavioral)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q5_score} / 20 pts</span>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q5_feedback}</p>
+                            {interviewResult.q5_correct_answer && (
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q5_correct_answer}
+                              </div>
+                            )}
+                            {interviewResult.q5_reason && (
+                              <div style={{ marginTop: '0.2rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Reason:</span> {interviewResult.q5_reason}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2312,7 +2420,18 @@ export default function App() {
                             <div className="doc-meta">Graded: {new Date(ih.date).toLocaleDateString()}</div>
                           </div>
                         </div>
-                        <div style={{ fontWeight: 800 }}>{ih.score}%</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ fontWeight: 800 }}>{ih.score}%</div>
+                          <button
+                            className="history-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInterviewDelete(ih.id);
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2333,9 +2452,12 @@ export default function App() {
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <span className="form-label">Model A</span>
-                    <select className="form-input" style={{ width: '180px' }} value={modelA} onChange={e => setModelA(e.target.value)}>
+                    <select className="form-input" style={{ width: '220px' }} value={modelA} onChange={handleModelAChange}>
                       <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (Free)</option>
                       <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General (Free)</option>
+                      <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
+                      <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
+                      <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 (Premium)</option>
                     </select>
                   </div>
 
@@ -2343,10 +2465,12 @@ export default function App() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <span className="form-label">Model B</span>
-                    <select className="form-input" style={{ width: '220px' }} value={modelB} onChange={e => setModelB(e.target.value)}>
-                      <option value="meta-llama/Llama-3.2-3B-Instruct">Llama 3.2 (Premium)</option>
+                    <select className="form-input" style={{ width: '220px' }} value={modelB} onChange={handleModelBChange}>
+                      <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (Free)</option>
+                      <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General (Free)</option>
+                      <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
+                      <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
                       <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 (Premium)</option>
-                      <option value="mistralai/Mistral-7B-Instruct-v0.3">Mistral 7B (Premium)</option>
                     </select>
                   </div>
                 </div>
