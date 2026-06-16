@@ -35,7 +35,9 @@ import {
   ShieldCheck,
   ShieldAlert,
   Eye,
-  EyeOff
+  EyeOff,
+  Menu,
+  X
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -232,6 +234,7 @@ export default function App() {
 
   // Navigation state
   const [activeTab, setActiveTab] = useState('chat');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [billingStep, setBillingStep] = useState('none'); // none -> checkout
 
   // Auth form states
@@ -1444,50 +1447,60 @@ export default function App() {
   // Rendering Dashboard Shell
   return (
     <div className="app-container">
+      {/* Sidebar Mobile Overlay Backdrop */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+      
       {/* Sidebar Panel */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">Phoenix AI</div>
-          {user.plan === 'Free' && (
-            <span className="plan-pill" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>Free</span>
-          )}
-          {user.plan === 'Premium' && (
-            <span className="plan-pill">Premium</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {user.plan === 'Free' && (
+              <span className="plan-pill" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>Free</span>
+            )}
+            {user.plan === 'Premium' && (
+              <span className="plan-pill">Premium</span>
+            )}
+            <button className="sidebar-close-btn-mobile" onClick={() => setSidebarOpen(false)} title="Close Menu">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Global Navigation links */}
         <div className="sidebar-nav">
-          <div className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
+          <div className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setSidebarOpen(false); }}>
             <MessageSquare size={18} />
             <span>AI RAG Chat</span>
           </div>
-          <div className={`nav-item ${activeTab === 'playground' ? 'active' : ''}`} onClick={() => setActiveTab('playground')}>
+          <div className={`nav-item ${activeTab === 'playground' ? 'active' : ''}`} onClick={() => { setActiveTab('playground'); setSidebarOpen(false); }}>
             <Code2 size={18} />
             <span>Coding Playground</span>
           </div>
-          <div className={`nav-item ${activeTab === 'voice' ? 'active' : ''}`} onClick={() => setActiveTab('voice')}>
+          <div className={`nav-item ${activeTab === 'voice' ? 'active' : ''}`} onClick={() => { setActiveTab('voice'); setSidebarOpen(false); }}>
             <Mic size={18} />
             <span>Voice Mentor</span>
           </div>
-          <div className={`nav-item ${activeTab === 'interview' ? 'active' : ''}`} onClick={() => setActiveTab('interview')}>
+          <div className={`nav-item ${activeTab === 'interview' ? 'active' : ''}`} onClick={() => { setActiveTab('interview'); setSidebarOpen(false); }}>
             <GraduationCap size={18} />
             <span>Mock Interviews</span>
           </div>
-          <div className={`nav-item ${activeTab === 'benchmark' ? 'active' : ''}`} onClick={() => setActiveTab('benchmark')}>
+          <div className={`nav-item ${activeTab === 'benchmark' ? 'active' : ''}`} onClick={() => { setActiveTab('benchmark'); setSidebarOpen(false); }}>
             <Sparkles size={18} />
             <span>Models Benchmark</span>
           </div>
-          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => { setActiveTab('profile'); setSidebarOpen(false); }}>
             <User size={18} />
             <span>My Profile</span>
           </div>
-          <div className={`nav-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => setActiveTab('billing')}>
+          <div className={`nav-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}>
             <CreditCard size={18} />
             <span>Subscription Hub</span>
           </div>
           {user.role === 'Admin' && (
-            <div className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
+            <div className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}>
               <BarChart3 size={18} />
               <span>Admin Analytics</span>
             </div>
@@ -1500,7 +1513,7 @@ export default function App() {
             <div className="history-title-row">
               <span>Chat Sessions</span>
               <button 
-                onClick={() => createConversation('New Conversation', selectedModel)} 
+                onClick={() => { createConversation('New Conversation', selectedModel); setSidebarOpen(false); }} 
                 className="chat-action-btn"
                 style={{ fontSize: '11px', padding: '2px 6px', background: 'var(--primary-gradient)', color: '#fff', border: 'none', borderRadius: '4px' }}
               >
@@ -1531,7 +1544,7 @@ export default function App() {
                 <div
                   key={c.id}
                   className={`history-item ${activeConversation?.id === c.id ? 'active' : ''}`}
-                  onClick={() => selectConversation(c)}
+                  onClick={() => { selectConversation(c); setSidebarOpen(false); }}
                 >
                   <div className="history-details">
                     <span className="history-name">{c.title}</span>
@@ -1571,16 +1584,21 @@ export default function App() {
       <div className="main-viewport">
         {/* Header bar */}
         <div className="panel-header">
-          <h2 className="panel-title">
-            {activeTab === 'chat' && 'AI Chat & RAG Knowledge Tutor'}
-            {activeTab === 'playground' && 'AI Coding Playground'}
-            {activeTab === 'voice' && 'AI Voice Coding Mentor'}
-            {activeTab === 'interview' && 'AI Interview Preparation Platform'}
-            {activeTab === 'benchmark' && 'AI Models Benchmarking'}
-            {activeTab === 'profile' && 'My Personal Dashboard'}
-            {activeTab === 'billing' && 'Billing & Subscription Sandbox'}
-            {activeTab === 'analytics' && 'Platform Analytics & SQL Reporting'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button className="sidebar-toggle-btn" onClick={() => setSidebarOpen(true)} title="Open Menu">
+              <Menu size={20} />
+            </button>
+            <h2 className="panel-title">
+              {activeTab === 'chat' && 'AI Chat & RAG Knowledge Tutor'}
+              {activeTab === 'playground' && 'AI Coding Playground'}
+              {activeTab === 'voice' && 'AI Voice Coding Mentor'}
+              {activeTab === 'interview' && 'AI Interview Preparation Platform'}
+              {activeTab === 'benchmark' && 'AI Models Benchmarking'}
+              {activeTab === 'profile' && 'My Personal Dashboard'}
+              {activeTab === 'billing' && 'Billing & Subscription Sandbox'}
+              {activeTab === 'analytics' && 'Platform Analytics & SQL Reporting'}
+            </h2>
+          </div>
 
           {activeTab === 'chat' && (
             <div className="flex-row-gap" style={{ alignItems: 'center' }}>
