@@ -114,6 +114,11 @@ router.post('/:id/messages', authenticateToken, checkQueryLimit, async (req, res
 
     // Determine model to use
     const activeModel = modelOverride || conv.model || 'Qwen/Qwen2.5-Coder-7B-Instruct';
+
+    const premiumModels = ['meta-llama/Llama-3.3-70B-Instruct'];
+    if (premiumModels.includes(activeModel) && req.user.plan !== 'Premium' && req.user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Premium models are not allowed on the Free plan' });
+    }
     
     // Fetch prior messages in the conversation for context window
     const history = await Message.findAll({

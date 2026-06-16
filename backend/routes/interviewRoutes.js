@@ -30,7 +30,7 @@ Return the output as a clean, valid JSON array of strings, like this:
 ]
 Do not write any introductory or trailing text. Output ONLY the JSON block.`;
 
-    const aiResponse = await queryHuggingFace('google/gemma-2-9b-it', [{ role: 'user', content: prompt }]);
+    const aiResponse = await queryHuggingFace('HuggingFaceH4/zephyr-7b-beta', [{ role: 'user', content: prompt }]);
     
     let questions = [];
     try {
@@ -197,7 +197,7 @@ Instructions:
 }
 Do not write any introductory or trailing text. Output ONLY the JSON block.`;
 
-    const aiResponse = await queryHuggingFace('google/gemma-2-9b-it', [{ role: 'user', content: prompt }]);
+    const aiResponse = await queryHuggingFace('HuggingFaceH4/zephyr-7b-beta', [{ role: 'user', content: prompt }]);
     
     let evaluationResult = {
       score: 40,
@@ -241,6 +241,9 @@ Do not write any introductory or trailing text. Output ONLY the JSON block.`;
 
     // Append calculated speech metrics
     evaluationResult.communication_feedback = `${evaluationResult.communication_feedback || 'Your answer structures were reasonable.'}\n\n[Delivery Metrics] ${fillerAlert}`;
+
+    // Append qaPairs to the result so they are saved to the database and accessible in history
+    evaluationResult.qaPairs = qaPairs;
 
     // Save Interview record
     const newInterview = await Interview.create({

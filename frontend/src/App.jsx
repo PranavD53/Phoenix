@@ -303,7 +303,7 @@ export default function App() {
   // Model Benchmarking States
   const [benchmarkPrompt, setBenchmarkPrompt] = useState('');
   const [modelA, setModelA] = useState('Qwen/Qwen2.5-Coder-7B-Instruct');
-  const [modelB, setModelB] = useState('google/gemma-2-9b-it');
+  const [modelB, setModelB] = useState('HuggingFaceH4/zephyr-7b-beta');
   const [benchmarkResults, setBenchmarkResults] = useState(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
 
@@ -1670,8 +1670,8 @@ export default function App() {
               >
                 <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder 7B (Free)</option>
                 <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General 7B (Free)</option>
-                <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
-                <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
+                <option value="HuggingFaceH4/zephyr-7b-beta">Zephyr 7B Beta (Free)</option>
+                <option value="microsoft/Phi-3-mini-4k-instruct">Phi-3 Mini 4K (Free)</option>
                 <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 Large 70B (Premium)</option>
               </select>
             </div>
@@ -2248,9 +2248,15 @@ export default function App() {
                               <span>Q1 (MCQ)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q1_score} / 20 pts</span>
                             </div>
+                            {interviewResult.qaPairs && interviewResult.qaPairs[0] && (
+                              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{interviewResult.qaPairs[0].question}</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Your Answer: {interviewResult.qaPairs[0].answer || 'No answer provided'}</p>
+                              </div>
+                            )}
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q1_feedback}</p>
                             {interviewResult.q1_correct_answer && (
-                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem', borderLeft: '3px solid var(--status-success)' }}>
                                 <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q1_correct_answer}
                               </div>
                             )}
@@ -2265,9 +2271,15 @@ export default function App() {
                               <span>Q2 (MCQ)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q2_score} / 20 pts</span>
                             </div>
+                            {interviewResult.qaPairs && interviewResult.qaPairs[1] && (
+                              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{interviewResult.qaPairs[1].question}</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Your Answer: {interviewResult.qaPairs[1].answer || 'No answer provided'}</p>
+                              </div>
+                            )}
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q2_feedback}</p>
                             {interviewResult.q2_correct_answer && (
-                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem', borderLeft: '3px solid var(--status-success)' }}>
                                 <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q2_correct_answer}
                               </div>
                             )}
@@ -2282,9 +2294,15 @@ export default function App() {
                               <span>Q3 (Concept)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q3_score} / 20 pts</span>
                             </div>
+                            {interviewResult.qaPairs && interviewResult.qaPairs[2] && (
+                              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{interviewResult.qaPairs[2].question}</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Your Answer: {interviewResult.qaPairs[2].answer || 'No answer provided'}</p>
+                              </div>
+                            )}
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q3_feedback}</p>
                             {interviewResult.q3_correct_answer && (
-                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem', borderLeft: '3px solid var(--status-success)' }}>
                                 <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q3_correct_answer}
                               </div>
                             )}
@@ -2299,9 +2317,15 @@ export default function App() {
                               <span>Q4 (Concept)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q4_score} / 20 pts</span>
                             </div>
+                            {interviewResult.qaPairs && interviewResult.qaPairs[3] && (
+                              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{interviewResult.qaPairs[3].question}</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Your Answer: {interviewResult.qaPairs[3].answer || 'No answer provided'}</p>
+                              </div>
+                            )}
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q4_feedback}</p>
                             {interviewResult.q4_correct_answer && (
-                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem', borderLeft: '3px solid var(--status-success)' }}>
                                 <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q4_correct_answer}
                               </div>
                             )}
@@ -2316,9 +2340,15 @@ export default function App() {
                               <span>Q5 (Scenario/Behavioral)</span>
                               <span style={{ color: 'var(--accent-cyan)' }}>{interviewResult.q5_score} / 20 pts</span>
                             </div>
+                            {interviewResult.qaPairs && interviewResult.qaPairs[4] && (
+                              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{interviewResult.qaPairs[4].question}</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Your Answer: {interviewResult.qaPairs[4].answer || 'No answer provided'}</p>
+                              </div>
+                            )}
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{interviewResult.q5_feedback}</p>
                             {interviewResult.q5_correct_answer && (
-                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', fontSize: '0.8rem', borderLeft: '3px solid var(--status-success)' }}>
                                 <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>Correct Answer:</span> {interviewResult.q5_correct_answer}
                               </div>
                             )}
@@ -2455,8 +2485,8 @@ export default function App() {
                     <select className="form-input" style={{ width: '220px' }} value={modelA} onChange={handleModelAChange}>
                       <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (Free)</option>
                       <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General (Free)</option>
-                      <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
-                      <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
+                      <option value="HuggingFaceH4/zephyr-7b-beta">Zephyr 7B Beta (Free)</option>
+                      <option value="microsoft/Phi-3-mini-4k-instruct">Phi-3 Mini 4K (Free)</option>
                       <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 (Premium)</option>
                     </select>
                   </div>
@@ -2468,8 +2498,8 @@ export default function App() {
                     <select className="form-input" style={{ width: '220px' }} value={modelB} onChange={handleModelBChange}>
                       <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (Free)</option>
                       <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 General (Free)</option>
-                      <option value="google/gemma-2-2b-it">Gemma 2 2B (Free)</option>
-                      <option value="google/gemma-2-9b-it">Gemma 2 9B (Free)</option>
+                      <option value="HuggingFaceH4/zephyr-7b-beta">Zephyr 7B Beta (Free)</option>
+                      <option value="microsoft/Phi-3-mini-4k-instruct">Phi-3 Mini 4K (Free)</option>
                       <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 (Premium)</option>
                     </select>
                   </div>
